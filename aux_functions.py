@@ -9,7 +9,16 @@ from sklearn.metrics import accuracy_score
 from scipy.signal import butter, lfilter
 from mpl_toolkits.mplot3d import Axes3D
 
+# ---------- DATA PIPELINE ------------------- #
 
+# user is S1-S12 and dataset is A1-A3 (note A3 only has 2 repetitions of each movement)
+def getdata(user, dataset):
+    data = scipy.io.loadmat(f"./datasets/S{user}_E1_A{dataset}.mat")
+    emg_data = data['emg']
+    glove_data = data['glove']
+    restimulus_data = data['restimulus']
+
+    return emg_data, glove_data, restimulus_data
 
 # ----------- FILTERING ------------------------------#
 
@@ -27,14 +36,13 @@ def lowpass_filter(data, cutoff, fs, order = 5):
 # --------- FILTERING END -------------------------#
 
 
+
 ## --------- SLIDING WINDOW FUNCTIONS ---------------- #
 
 def slidingWindowEMG(x, win_size, win_stride):
 
-    win_size = 3
-    win_stride = 2
 
-    num_windows = 1 + (len(x) - win_size) // win_stride
+    num_windows = int(1 + (len(x) - win_size) // win_stride)
 
     windows = []
 
@@ -48,12 +56,51 @@ def slidingWindowEMG(x, win_size, win_stride):
         
     windows_array = np.array(windows)
 
-    return windows_array
+    return windows_array # this returns an array where each element is a window of data -> for feature extraction
+
+
+
 
 def slidingWindowGlove(x, win_size, win_stride):
 
-    win_size = 3
-    win_stride = 2
+
+    num_windows = 1 + (len(x) - win_size) // win_stride
+
+    windows = []
+
+    for i in range(num_windows):
+
+
+        start_index = i * win_stride
+        end_index = start_index + win_size
+        window = x[start_index:end_index]
+        # window = np.mean(window) # here I am doing mean -> I want to be doing EWMA
+        # windows.append(window)
+
+        # not doing EWMA but taking mean of last 40% of the window
+
+        # Calculate start index for the last 40% of the window
+        mean_start_index = start_index + int(win_size * 0.6)
+
+
+        # Take only the last 40% of the window
+        end_segment_window = x[mean_start_index:end_index]
+
+        # Calculate the mean of the last 40%
+        window_mean = np.mean(end_segment_window)
+
+        windows.append(window_mean)
+
+    # convert the list of windows to a numpy array
+        
+    windows_array = np.array(windows) # this returns an array where each element is the
+    # final data point for that window 
+
+    return windows_array
+
+
+def slidingWindowRestimulus(x, win_size, win_stride):
+
 
     num_windows = 1 + (len(x) - win_size) // win_stride
 
@@ -62,13 +109,35 @@ def slidingWindowGlove(x, win_size, win_stride):
     for i in range(num_windows):
         start_index = i * win_stride
         end_index = start_index + win_size
-        window = x[start_index:end_index]
-        window = np.mean(window)
-        windows.append(window)
+        #window = x[start_index:end_index]
+        #print("window", window)
+
+        # window = np.mean(window) # here I am doing mean -> I want to be doing EWMA
+        # windows.append(window)
+
+        #not doing EWMA but taking mean of last 40% of the window
+
+        # # Calculate start index for the last 40% of the window
+        mean_start_index = start_index + int(win_size * 0.6)
+
+        # print("mean start index", mean_start_index)
+
+        # Take only the last 40% of the window
+        end_segment_window = x[mean_start_index:end_index]
+
+        # print(end_segment_window)        
+
+        # Calculate the mean of the last 40%
+        window_mean = np.mean(end_segment_window)
+        #window_mean = np.mean(window)
+
+
+        windows.append(window_mean)
 
     # convert the list of windows to a numpy array
         
-    windows_array = np.array(windows)
+    windows_array = np.array(windows) # this returns an array where each element is the
+    # final data point for that window 
 
     return windows_array
 
@@ -92,7 +161,7 @@ def LV(windows_array, win_size):
         window_LV = np.log10(np.var(window)) # ? divide by win_size ? 
         windows_LV_list.append(window_LV)
     windows_LV_array = np.array(windows_LV_list)
-    print(windows_LV_array.shape)
+    #print(windows_LV_array.shape)
 
     return windows_LV_array
 
@@ -101,11 +170,168 @@ def slidingWindowParameters(frequency, size_secs, stride_secs):
     window_size = frequency * size_secs
     window_stride = frequency * stride_secs
 
-    print(window_size, window_stride)
+    #print(window_size, window_stride)
 
     return window_size, window_stride
 
 ## --------- END SLIDING WINDOW FUNCTIONS ---------------- #
+
+
+### ------- EMG , GLOVE AND RESTIMULUS PROCESSING START ----- ###
+
+def emg_process(cutoff_val, size_val, stride_val, user, dataset, order):
+
+        fs = 2000
+
+        size, stride = slidingWindowParameters(2000, (size_val*10**(-3)), (stride_val*10**(-3)))
+
+        size = int(size)
+        stride = int(stride)
+        # 2. get the data: input is user and which dataset (dataset should only be 1 or 2)
+
+        emg_u1_d1, glove_u1_d1, stimulus_u1_d1 = getdata(user = user, dataset = dataset)
+
+        # 3. low-pass filter the EMG data and extract features
+
+        for i in range(emg_u1_d1.shape[1]):
+            emg_u1_d1[:, i] = lowpass_filter(emg_u1_d1[:, i], cutoff_val, fs, order)
+
+
+        emg_windows = []
+
+        # Loop through each channelc
+        num_channelsEMG = emg_u1_d1.shape[1] 
+
+
+        # low pass and features = [WL and LV] -> 
+        # for i in range(num_channelsEMG):
+
+        for i in range(num_channelsEMG):
+            emg_window = slidingWindowEMG(emg_u1_d1[:, i], size, stride)
+            print("emg windowing at step ", i)
+            emg_window_WL = WL(emg_window, size, stride) 
+            print("emg WL extracting at step ", i)
+            WL_bool = True
+            emg_window_LV = LV(emg_window, size)
+            print("emg LV extracting at step ", i)
+            LV_bool = True
+            emg_windows.append(emg_window_WL)
+            emg_windows.append(emg_window_LV)
+
+
+        emg_windows_stacked = np.array(emg_windows)
+        emg_windows_stacked = np.transpose(emg_windows_stacked)
+
+        if WL_bool == True and LV_bool == True:
+            feat_ID = '0102'
+
+        
+        if dataset == 1:
+            np.save(f"./training_data/emg_data_processed/emg_{user}_{dataset}_{cutoff_val}_{size_val}_{stride_val}_{feat_ID}.npy", emg_windows_stacked)
+        
+        elif dataset == 2:
+            np.save(f"./validation_data/emg_data_processed/emg_{user}_{dataset}_{cutoff_val}_{size_val}_{stride_val}_{feat_ID}.npy", emg_windows_stacked)
+
+        elif dataset == 3:
+            np.save(f"./test_data/emg_data_processed/emg_{user}_{dataset}_{cutoff_val}_{size_val}_{stride_val}_{feat_ID}.npy", emg_windows_stacked)
+
+
+
+        # np.save(f"./emg_data_processed/emg_{user}_{dataset}_{cutoff_val}_{size_val}_{stride_val}_{feat_ID}.npy", emg_windows_stacked)
+        # print("saved EMG data")
+
+
+        emg_data_ID = f"{user}_{dataset}_{cutoff_val}_{size_val}_{stride_val}_{feat_ID}"
+
+        return emg_data_ID
+
+
+
+
+def glove_process(size_val, stride_val, user, dataset):
+     
+    size, stride = slidingWindowParameters(2000, (size_val*10**(-3)), (stride_val*10**(-3)))
+
+    size = int(size)
+    stride = int(stride)
+    
+    emg_u1_d1, glove_u1_d1, stimulus_u1_d1 = getdata(user = user, dataset = dataset)
+
+    del emg_u1_d1, stimulus_u1_d1
+
+
+    # perform sliding windows on the data
+        
+    glove_data = []
+
+    for i in range(glove_u1_d1.shape[1]):
+
+        glove_data.append(slidingWindowGlove(glove_u1_d1[:, i], size, stride))
+
+    
+    glove_data_array = np.array(glove_data).T
+
+
+    if dataset == 1:
+        np.save(f"./training_data/glove_data_processed/glove_{user}_{dataset}_{size_val}_{stride_val}.npy", glove_data_array)
+
+    elif dataset == 2:
+        np.save(f"./validation_data/glove_data_processed/glove_{user}_{dataset}_{size_val}_{stride_val}.npy", glove_data_array)
+
+    elif dataset == 3:
+        np.save(f"./test_data/glove_data_processed/glove_{user}_{dataset}_{size_val}_{stride_val}.npy", glove_data_array)
+
+
+
+    # np.save(f"./glove_data_processed/glove_{user}_{dataset}_{size_val}_{stride_val}.npy", glove_data_array)
+    # print("saved glove data")
+
+    glove_data_ID = f"{user}_{dataset}_{size_val}_{stride_val}"
+
+    return glove_data_ID
+
+
+
+
+def restimulusProcess(size_val, stride_val, user, dataset):
+    
+    size, stride = slidingWindowParameters(2000, (size_val*10**(-3)), (stride_val*10**(-3)))
+
+    size = int(size)
+    stride = int(stride)
+    
+    emg_u1_d1, glove_u1_d1, restimulus_u1_d1 = getdata(user = user, dataset = dataset)
+
+    del emg_u1_d1, glove_u1_d1
+
+    restimulus_data = []
+
+    for i in range(restimulus_u1_d1.shape[1]):
+        restimulus_data.append(slidingWindowRestimulus(restimulus_u1_d1[:, i], size, stride))
+
+    restimulus_data_array = np.array(restimulus_data).T
+
+    if dataset == 1:
+        np.save(f"./training_data/restimulus_data_processed/restimulus_{user}_{dataset}_{size_val}_{stride_val}.npy", restimulus_data_array)
+
+    elif dataset == 2:
+        np.save(f"./validation_data/restimulus_data_processed/restimulus_{user}_{dataset}_{size_val}_{stride_val}.npy", restimulus_data_array)
+
+    elif dataset == 3:
+        np.save(f"./test_data/restimulus_data_processed/restimulus_{user}_{dataset}_{size_val}_{stride_val}.npy", restimulus_data_array)
+
+
+    # np.save(f"./restimulus_data_processed/restimulus_{user}_{dataset}_{size_val}_{stride_val}.npy", restimulus_data_array)
+    # print("saved restimulus data")
+
+    restimulus_data_ID = f"{user}_{dataset}_{size_val}_{stride_val}"
+
+    return restimulus_data_ID
+
+
+
+
+### ------- EMG , GLOVE AND RESTIMULUS PROCESSING END ----- ###
 
 
 
@@ -118,11 +344,6 @@ def getGloveChannels(list_channels, glove_dataset):
     return required_channels_data
 
 
-def plotEmbedding(cebra_model, pre_embedding):
-
-    # plots embedding, loss and temperature
-
-    import matplotlib.pyplot as plt
 
 
 
@@ -132,13 +353,13 @@ def plotEmbedding(cebra_model, pre_embedding):
 
     # Create subplots
     ax1 = fig.add_subplot(221, projection="3d")  # 3D plot for the first embedding
-    #ax2 = fig.add_subplot(223, projection="3d")  # 3D plot for the second embedding
+    ax2 = fig.add_subplot(223, projection="3d")  # 3D plot for the second embedding
     ax3 = fig.add_subplot(222)                   # 2D plot for loss
     ax4 = fig.add_subplot(224)                   # 2D plot for temperature
 
     # Set the background color for 3D plots to black
     ax1.set_facecolor('black')
-    #ax2.set_facecolor('black')
+    ax2.set_facecolor('black')
 
     # First embedding plot
     ax1 = cebra.plot_embedding(pre_embedding, cmap='magma', embedding_labels='time', idx_order=(0, 1, 2), title="Latents: (1,2,3)", ax=ax1, markersize=5, alpha=0.5)
@@ -146,12 +367,12 @@ def plotEmbedding(cebra_model, pre_embedding):
     ax1.tick_params(axis='y', colors='white')
     ax1.tick_params(axis='z', colors='white')
     ax1.set_title("Latents (1, 2, 3)", color = 'white', fontsize = 9)
-    # # Second embedding plot
-    # ax2 = cebra.plot_embedding(pre_embedding, cmap='magma', embedding_labels='time', idx_order=(3, 4, 5), title="Latents: (4,5,6)", ax=ax2, markersize=5, alpha=0.5)
-    # ax2.tick_params(axis='x', colors='white')
-    # ax2.tick_params(axis='y', colors='white')
-    # ax2.tick_params(axis='z', colors='white')
-    # ax2.set_title("Latents (3, 4, 5)", color = 'white', fontsize = 9)
+    # Second embedding plot
+    ax2 = cebra.plot_embedding(pre_embedding, cmap='magma', embedding_labels='time', idx_order=(3, 4, 5), title="Latents: (4,5,6)", ax=ax2, markersize=5, alpha=0.5)
+    ax2.tick_params(axis='x', colors='white')
+    ax2.tick_params(axis='y', colors='white')
+    ax2.tick_params(axis='z', colors='white')
+    ax2.set_title("Latents (3, 4, 5)", color = 'white', fontsize = 9)
 
 
 
