@@ -21,7 +21,14 @@ import cebra.models
 import cebra.data
 from cebra.models.model import _OffsetModel, ConvolutionalModelMixin
 
-
+plt.rcParams.update(
+    {
+        "lines.markersize": 20,  # Big points
+        "font.size": 20,  # Larger font
+        "xtick.major.size": 10.0,  # Bigger xticks
+        "ytick.major.size": 10.0,  # Bigger yticks
+    }
+)
 
 
 ## this should be automated with auxf.getProcessedData ** TO DO ***
@@ -71,12 +78,13 @@ class MyModel(_OffsetModel, ConvolutionalModelMixin):
 
 
 
-dataset_class = {"dataset_classification": (emg_valid, restim_valid)}     # classification
 
-dataset_regression = {"dataset_regression": (emg_valid, glove_valid)}     # regression
 
 
 def gridSearch(model: str, iterations: int, training: str):
+
+    dataset_class = {"dataset_classification": (emg_valid, restim_valid)}     # classification
+    dataset_regression = {"dataset_regression": (emg_valid, glove_valid)}     # regression
 
     # Define the parameters, either variable or fixed
     params_grid = dict(
@@ -123,19 +131,6 @@ def gridSearch(model: str, iterations: int, training: str):
     
     ax = grid_search.plot_loss_comparison(figsize = figsize)
     plt.savefig(fig_path)
-
-                            
-    # # grid_search = cebra.grid_search.GridSearch()
-    # # grid_search.fit_models(datasets=datasets, params=params_grid, models_dir= f"saved_models_classification/{model}")
-
-    # # df_results = grid_search.get_df_results()
-    # # df_results.to_csv('grid_search_results.csv', index=False)
-
-
-
-    # # plot using grid_search.plot_loss_comparison()
-    # ax = grid_search.plot_loss_comparison(figsize = figsize)
-    # plt.savefig(f"./loss_plots/{model}/classification.png")
 
 
 # def offset10_run_class():
@@ -244,26 +239,6 @@ def gridSearch(model: str, iterations: int, training: str):
 
 
 
-iterations = 1000
-
-
-# # # classification
-
-# gridSearch(model = "offset10-model", iterations = iterations, training = 'C')
-
-# gridSearch(model = 'my-model-1', iterations = iterations, training = 'C')
-
-# gridSearch(model = 'offset1-model-mse', iterations = iterations, training = 'C')
-
-
-
-# # regression
-
-# gridSearch(model = "offset10-model", iterations = iterations, training = 'R')
-
-# gridSearch(model = 'my-model-1', iterations = iterations, training = 'R')
-
-# gridSearch(model = 'offset1-model-mse', iterations = iterations, training = 'R')
 
 
 # ready to run ! :) 
@@ -271,7 +246,7 @@ iterations = 1000
 
 # get best results from classification and regression
 
-def getBestModels(training: str):
+def getBestModels(training: str, n: int):
 
     if training == 'C':
         resultspath = f"./saved_models_classification/grid_search_results"
@@ -311,26 +286,16 @@ def getBestModels(training: str):
 
     combined_dataframe.to_csv(resultsdfpath, index = False)
 
-    best_models_df = combined_dataframe.head(10)
+    # get the n best models 
+
+    best_models_df = combined_dataframe.head(n)
 
     best_models_df.to_csv(bestmodelspath, index = False)
 
 
 
-getBestModels("C")
-getBestModels("R")
-
-
-
-
-
-
-## DATASET CHANGES HERE -> FROM VALIDATION SET TO TRAINING SET 
-
-
 # once auxf.getProcessedData is done this will work -
 # def trainBestModels(user: int, dataset: int, training: str, iterations: int):
-
 
 ## temporary func def: 
 
@@ -341,11 +306,11 @@ def trainBestModels(training: str, iterations: int):
 
 
     # using the TRAINING dataset (user = 1, dataset = 1)
-    emg_data = np.load("/home/sofia/beng_thesis/training_data/emg_data_processed/emg_1_2_450_256_1_0102.npy")
-    glove_data = np.load("/home/sofia/beng_thesis/training_data/glove_data_processed/glove_1_2_256_1.npy")
-    restimulus_data = np.load("/home/sofia/beng_thesis/training_data/restimulus_data_processed/restimulus_1_2_256_1.npy")
+    emg_data = np.load("./training_data/emg_data_processed/emg_1_1_450_256_1_0102.npy")
+    glove_data = np.load("./training_data/glove_data_processed/glove_1_1_256_1.npy")
+    restimulus_data = np.load("./training_data/restimulus_data_processed/restimulus_1_1_256_1.npy")
 
-    # train the best 10 models on the entire dataset for user 1 dataset 2 (**need to check training vs validation**)
+    # train the best 10 models on the entire dataset for user 1 dataset 1 (**need to check training vs validation**)
 
     if training == "C":
         bestmodelspath = f"./saved_models_classification/best_models/"
@@ -358,9 +323,10 @@ def trainBestModels(training: str, iterations: int):
     best_models_df = pd.read_csv(f"{bestmodelspath}/{training}-df.csv")
 
     cebra_models = []
+    labels = []
 
     # iterate through all the models in the best models dataframe and train on the entire dataset
-    for row in len(best_models_df):
+    for row in range(len(best_models_df)):
 
         # build the model based on the paramgrid
 
@@ -370,7 +336,8 @@ def trainBestModels(training: str, iterations: int):
         time_offsets = best_models_df['time_offsets'][row]
         output_dimension = best_models_df['output_dimension'][row]
 
-        cebra_models[row] = CEBRA(
+        #cebra_models[row] = CEBRA(
+        cebra_model = CEBRA(
             model_architecture = model,
             batch_size = batch_size,
             temperature_mode='auto',
@@ -386,26 +353,62 @@ def trainBestModels(training: str, iterations: int):
 
 
         if training == 'C':
-            cebra_models[row].fit(emg_data, restimulus_data)
+            #cebra_models[row].fit(emg_data, restimulus_data)
+            cebra_model.fit(emg_data, restimulus_data)
 
 
         if training == 'R':
-            cebra_models[row].fit(emg_data, glove_data)
+            #cebra_models[row].fit(emg_data, glove_data)
+            cebra_model.fit(emg_data, glove_data)
 
 
-        cebra_models[row].save(f"{bestmodelspath}/row-{row}.pt")
+        #cebra_models[row].save(f"{bestmodelspath}/row-{row}.pt")
+        cebra_model.save(f"{bestmodelspath}/best-{row}.pt")
+        
+        cebra_models.append(cebra_model)
 
-        labels = np.arange(0, 10, 1)
+        label = f"{model}_{batch_size}_{learning_rate}_{time_offsets}_{output_dimension}"
 
-        ax = cebra.compare_models([cebra_models[i] for i in range(len(cebra_models))], labels=labels)
-        plt.savefig(f"{bestmodelspath}/loss_comparison")
-
-
-
-
-    
+        labels.append(label)
 
 
+    ax = cebra.compare_models([cebra_models[i] for i in range(len(cebra_models))], labels=labels, figsize=figsize)
+    plt.savefig(f"{bestmodelspath}/loss_comparison")
+
+
+
+
+
+
+iterations = 5000
+
+
+# # # # classification
+
+gridSearch(model = "offset10-model", iterations = iterations, training = 'C')
+
+gridSearch(model = 'my-model-1', iterations = iterations, training = 'C')
+gridSearch(model = 'offset1-model-mse', iterations = iterations, training = 'C')
+
+
+
+# regression
+
+gridSearch(model = "offset10-model", iterations = iterations, training = 'R')
+gridSearch(model = 'my-model-1', iterations = iterations, training = 'R')
+gridSearch(model = 'offset1-model-mse', iterations = iterations, training = 'R')
+
+
+
+#from the grid search, get the 'n' models with the lowest loss
+
+getBestModels("C", n = 10)
+getBestModels("R", n = 10)
+
+
+# train the n best models on the entire training dataset 
+trainBestModels(training = 'C', iterations= 100)
+trainBestModels(training = 'R', iterations = 100)
 
 
 
