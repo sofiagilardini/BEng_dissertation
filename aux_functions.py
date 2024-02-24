@@ -20,6 +20,18 @@ def getdata(user, dataset):
 
     return emg_data, glove_data, restimulus_data
 
+
+
+def getProcessedData(user: int, dataset: int, type_data: str):
+
+   ### *** TO DO ***
+
+    pass
+
+
+
+
+
 # ----------- FILTERING ------------------------------#
 
 def butter_lowpass(cutoff, fs, order):
