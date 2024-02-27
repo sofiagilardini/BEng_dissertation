@@ -1,3 +1,7 @@
+
+
+# -------   PREAMBLE ------------- #
+
 import matplotlib.pyplot as plt
 import scipy.io 
 import numpy as np 
@@ -8,12 +12,30 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 from scipy.signal import butter, lfilter
 from mpl_toolkits.mplot3d import Axes3D
+import seaborn as sns
+import pandas as pd
+
+
+plt.rcParams.update(
+    {
+        "lines.markersize": 20,  # Big points
+        "font.size": 15,  # Larger font
+        "xtick.major.size": 10.0,  # Bigger xticks
+        "ytick.major.size": 10.0,  # Bigger yticks
+    }
+)
+
+# -------   PREAMBLE ------------- #
+
+
 
 # ---------- DATA PIPELINE ------------------- #
 
 # user is S1-S12 and dataset is A1-A3 (note A3 only has 2 repetitions of each movement)
 def getdata(user, dataset):
     data = scipy.io.loadmat(f"./datasets/S{user}_E1_A{dataset}.mat")
+    for key in data:
+        print(key)
     emg_data = data['emg']
     glove_data = data['glove']
     restimulus_data = data['restimulus']
@@ -22,11 +44,23 @@ def getdata(user, dataset):
 
 
 
-def getProcessedData(user: int, dataset: int, type_data: str):
+def getProcessedData(user: int, dataset: int, type_data: str, mode: str):
 
-   ### *** TO DO ***
+    winsize = 128
+    winstride = 52
+    cutoff = 450
+    feat_ID = '0102'
 
-    pass
+    if mode == 'emg':
+
+    # data = scipy.io.loadmat(f"./processed_data/{type_data}_data/{mode}_data_processed/{mode}_{user}_{dataset}_{cutoff}_{winsize}_{winstride}_{feat_ID}")
+        data = np.load(f"./{type_data}_data/{mode}_data_processed/{mode}_{user}_{dataset}_{cutoff}_{winsize}_{winstride}_{feat_ID}.npy")
+
+    else: 
+        data = np.load(f"./{type_data}_data/{mode}_data_processed/{mode}_{user}_{dataset}_{winsize}_{winstride}.npy")
+
+
+    return data
 
 
 
@@ -54,18 +88,38 @@ def lowpass_filter(data, cutoff, fs, order = 5):
 def slidingWindowEMG(x, win_size, win_stride):
 
 
-    num_windows = int(1 + (len(x) - win_size) // win_stride)
+    # #num_windows = int(1 + (len(x) - win_size) // win_stride)
+
+    # # Calculate the number of full windows that can be formed
+    # num_windows = int((len(x) - win_size) / win_stride) + 1
+
+    # # Ensure we don't create a window that goes beyond the length of x
+    # num_windows = min(num_windows, (len(x) - win_size) // win_stride + 1)
+
+
+    # # Calculate the maximum length that fits the window size and stride
+    # max_length = win_size + ((len(x) - win_size) // win_stride) * win_stride
+
+    # print('length of x was', len(x))
+    # # Truncate x to the maximum length
+    # x_truncated = x[:max_length]
+    # print('length x_truc', len(x_truncated))
+
+    # Perform the sliding window operation
+    num_windows = (len(x) - win_size) // win_stride + 1
+
 
     windows = []
-
     for i in range(num_windows):
         start_index = i * win_stride
         end_index = start_index + win_size
+        # Check if the end index goes beyond the array length
+        if end_index > len(x):
+            break  # Break the loop if the window exceeds the array length
         window = x[start_index:end_index]
         windows.append(window)
 
-    # convert the list of windows to a numpy array
-        
+    # Convert the list of windows to a numpy array
     windows_array = np.array(windows)
 
     return windows_array # this returns an array where each element is a window of data -> for feature extraction
@@ -161,6 +215,7 @@ def WL(windows_array, win_size, win_stride):
 
     for window in windows_array:
         window_WL = 1/win_size * np.sum(np.abs(np.diff(window)))
+        print('window_WL', window_WL)
         windows_WL_list.append(window_WL)
     
     windows_WL_array = np.array(windows_WL_list) # should be one dimensional (num_windows,)
@@ -170,7 +225,14 @@ def WL(windows_array, win_size, win_stride):
 def LV(windows_array, win_size):
     windows_LV_list = []
     for window in windows_array:
-        window_LV = np.log10(np.var(window)) # ? divide by win_size ? 
+        print('var window', np.var(window))
+
+        # log smoothing needed 
+
+        epsilon = 1e-15
+
+        window_LV = np.log10(np.var(window)+epsilon) # 
+        print('window LV', window_LV)
         windows_LV_list.append(window_LV)
     windows_LV_array = np.array(windows_LV_list)
     #print(windows_LV_array.shape)
@@ -222,17 +284,28 @@ def emg_process(cutoff_val, size_val, stride_val, user, dataset, order):
             emg_window = slidingWindowEMG(emg_u1_d1[:, i], size, stride)
             print("emg windowing at step ", i)
             emg_window_WL = WL(emg_window, size, stride) 
-            print("emg WL extracting at step ", i)
+            #print("emg WL extracting at step ", i)
             WL_bool = True
             emg_window_LV = LV(emg_window, size)
-            print("emg LV extracting at step ", i)
+            #print("emg LV extracting at step ", i)
             LV_bool = True
+            print('length emg window', len(emg_window))
             emg_windows.append(emg_window_WL)
             emg_windows.append(emg_window_LV)
 
 
         emg_windows_stacked = np.array(emg_windows)
         emg_windows_stacked = np.transpose(emg_windows_stacked)
+
+        # if np.isinf(emg_windows_stacked).any() or np.isnan(emg_windows_stacked).any():
+        # # Handle the presence of inf or NaN. Options might include:
+        # # - Raising an error
+        # # - Replacing inf and NaN with a specific value
+        # # - Removing rows/columns containing inf or NaN
+
+        # # For example, to raise an error:
+        #     raise ValueError("The EMG processed data contains 'inf' or 'NaN' values.")
+
 
         if WL_bool == True and LV_bool == True:
             feat_ID = '0102'
@@ -478,3 +551,116 @@ def cutStimulus2(stimulus_data, required_stimulus):
 
     return start_index, end_index
 
+
+
+def KNN_heatmap(model_list: list, emg_train, emg_test, rest_train, rest_test, k_list: list):
+
+    # model list can also just be one model, but for scalability purposes 
+
+    heatmap_array = np.zeros((len(model_list), len(k_list)))
+
+    models_name_list = []
+
+    for indx_model, model_path in enumerate(model_list):
+        for indx_k, k in enumerate(k_list): # how to determine k -> relevance to number of features ? 
+
+            model = cebra.CEBRA.load(model_path)
+
+            filename = model_path.split('_')[-1].split('.csv')[0]
+
+            models_name_list.append(filename)
+
+            train_embedding = model.transform(emg_train)
+            test_embedding = model.transform(emg_test)
+
+
+            KNN_decoder = cebra.KNNDecoder(n_neighbors= k, metric = 'cosine')
+
+            KNN_decoder.fit(train_embedding, rest_train)
+
+            KNN_pred = KNN_decoder.predict(test_embedding)
+
+            accuracy = accuracy_score(rest_test, KNN_pred)
+
+            print(f'accuracy {indx_model, indx_k}', accuracy)
+
+            # row model, column k
+            heatmap_array[indx_model, indx_k] = accuracy
+
+            # row = model
+            # column = k
+
+            print(heatmap_array)
+
+
+
+    plt.figure(figsize=(10, 10))
+    sns.heatmap(heatmap_array, vmin = 0, vmax = 1)
+    plt.xticks(ticks=np.arange(len(k_list)), labels=k_list)
+    # plt.yticks(ticks = np.arange(len(models_name_list)), labels = models_name_list)
+    # plt.yticks(rotation = 90)
+    plt.title("Heatmap for model and k parameters")
+    plt.xlabel("K")  # how will this label the models ? 
+    plt.ylabel("Model")
+    plt.show()
+
+
+
+def KNN_heatmap_df(model, emg_train, emg_test, rest_train, rest_test, k_list: list, user: int):
+
+    # model list can also just be one model, but for scalability purposes 
+
+    heatmap_array = np.zeros((1, len(k_list)))
+
+    models_name_list = []
+
+    for indx_k, k in enumerate(k_list): # how to determine k -> relevance to number of features ? 
+
+        #model = cebra.CEBRA.load(model_path)
+
+        #filename = model_path.split('_')[-1].split('.csv')[0]
+
+        #models_name_list.append(filename)
+
+        train_embedding = model.transform(emg_train)
+        test_embedding = model.transform(emg_test)
+
+
+        KNN_decoder = cebra.KNNDecoder(n_neighbors= k, metric = 'cosine')
+
+        KNN_decoder.fit(train_embedding, rest_train)
+
+        KNN_pred = KNN_decoder.predict(test_embedding)
+
+        accuracy = accuracy_score(rest_test, KNN_pred)
+
+        print(f'accuracy {indx_k}', accuracy)
+
+        rounded_accuracy = round(accuracy, 3)
+
+
+        # row model, column k
+        heatmap_array[0, indx_k] = rounded_accuracy
+
+        # row = model
+        # column = k
+
+        #heatmap_df = pd.DataFrame(data = heatmap_array, index = f"User: {user}")
+        heatmap_df = pd.DataFrame(data = heatmap_array)
+
+    
+        print(heatmap_array)
+
+
+
+    plt.figure(figsize=(10, 10))
+    sns.heatmap(heatmap_array, vmin = 0, vmax = 1)
+    plt.xticks(ticks=np.arange(len(k_list)), labels=k_list)
+    # plt.yticks(ticks = np.arange(len(models_name_list)), labels = models_name_list)
+    # plt.yticks(rotation = 90)
+    plt.title("Heatmap for model and k parameters")
+    plt.xlabel("K")
+    plt.savefig(f"./classification_results/KNN_heatmap_user{user}.png")
+    #plt.show()
+
+    return heatmap_df

@@ -19,42 +19,86 @@ import pandas as pd
 
 
 
-# winsize = 256ms, stride length = 1ms, cutoff freq = 450Hz
+# winsize = 256ms, stride length = 52ms (about 60% overlap), cutoff freq = 450Hz
 
 fs = 2000 # 
 order = 1
-win_size = 256
-win_stride = 1
+win_size = 128
+win_stride = 52
 cutoff_f = 450
 
 
+num_users = 7
+
+# for user in range(num_users):
+#     for dataset in range(3):
+
+#         dataset = dataset + 1
+#         user = user + 1
+
+# auxf.emg_process(cutoff_val = cutoff_f, size_val = win_size, stride_val = win_stride, user = 2, dataset=1, order = order)
+# auxf.glove_process(size_val = win_size, stride_val = win_stride, user = user, dataset = dataset)
+# auxf.restimulusProcess(size_val= win_size, stride_val= win_stride, user = user, dataset= dataset)
 
 
 
-# dataset 1
+for user in range(3):
 
-dataset = 1
+    user = user+1
 
-auxf.emg_process(cutoff_val = cutoff_f, size_val = win_size, stride_val = win_stride, user = 1, dataset=dataset, order = order)
-auxf.glove_process(size_val = win_size, stride_val = win_stride, user = 1, dataset = dataset)
-auxf.restimulusProcess(size_val= win_size, stride_val= win_stride, user = 1, dataset= dataset)
+    print('user in processing', user)
+
+    auxf.emg_process(cutoff_val = cutoff_f, size_val = win_size, stride_val = win_stride, user = user, dataset=1, order = order)
+    auxf.glove_process(size_val = win_size, stride_val = win_stride, user = user, dataset = 1)
+    auxf.restimulusProcess(size_val= win_size, stride_val= win_stride, user = user, dataset= 1)
 
 
-# dataset 2
 
-dataset = 2
+    auxf.emg_process(cutoff_val = cutoff_f, size_val = win_size, stride_val = win_stride, user = user, dataset=2, order = order)
+    auxf.glove_process(size_val = win_size, stride_val = win_stride, user = user, dataset = 2)
+    auxf.restimulusProcess(size_val= win_size, stride_val= win_stride, user = user, dataset= 2)
+    
+    print(user)
 
-auxf.emg_process(cutoff_val = cutoff_f, size_val = win_size, stride_val = win_stride, user = 1, dataset=dataset, order = order)
-auxf.glove_process(size_val = win_size, stride_val = win_stride, user = 1, dataset = dataset)
-auxf.restimulusProcess(size_val= win_size, stride_val= win_stride, user = 1, dataset= dataset)
+    auxf.emg_process(cutoff_val = cutoff_f, size_val = win_size, stride_val = win_stride, user = user, dataset=3, order = order)
+    auxf.glove_process(size_val = win_size, stride_val = win_stride, user = user, dataset = 3)
+    auxf.restimulusProcess(size_val= win_size, stride_val= win_stride, user = user, dataset= 3)
 
-#dataset 3 
 
-dataset = 3
+# for dataset in range(4):
 
-auxf.emg_process(cutoff_val = cutoff_f, size_val = win_size, stride_val = win_stride, user = 1, dataset=dataset, order = order)
-auxf.glove_process(size_val = win_size, stride_val = win_stride, user = 1, dataset = dataset)
-auxf.restimulusProcess(size_val= win_size, stride_val= win_stride, user = 1, dataset= dataset)
+#     dataset = dataset + 1
+
+#     auxf.emg_process(cutoff_val = cutoff_f, size_val = win_size, stride_val = win_stride, user = user, dataset=dataset, order = order)
+#     auxf.glove_process(size_val = win_size, stride_val = win_stride, user = user, dataset = dataset)
+#     auxf.restimulusProcess(size_val= win_size, stride_val= win_stride, user = user, dataset= dataset)
+
+
+
+# # dataset 1
+
+# dataset = 1
+
+# auxf.emg_process(cutoff_val = cutoff_f, size_val = win_size, stride_val = win_stride, user = 1, dataset=dataset, order = order)
+# auxf.glove_process(size_val = win_size, stride_val = win_stride, user = 1, dataset = dataset)
+# auxf.restimulusProcess(size_val= win_size, stride_val= win_stride, user = 1, dataset= dataset)
+
+
+# # dataset 2
+
+# dataset = 2
+
+# auxf.emg_process(cutoff_val = cutoff_f, size_val = win_size, stride_val = win_stride, user = 1, dataset=dataset, order = order)
+# auxf.glove_process(size_val = win_size, stride_val = win_stride, user = 1, dataset = dataset)
+# auxf.restimulusProcess(size_val= win_size, stride_val= win_stride, user = 1, dataset= dataset)
+
+# #dataset 3 
+
+# dataset = 3
+
+# auxf.emg_process(cutoff_val = cutoff_f, size_val = win_size, stride_val = win_stride, user = 1, dataset=dataset, order = order)
+# auxf.glove_process(size_val = win_size, stride_val = win_stride, user = 1, dataset = dataset)
+# auxf.restimulusProcess(size_val= win_size, stride_val= win_stride, user = 1, dataset= dataset)
 
 
 
