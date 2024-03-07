@@ -14,6 +14,7 @@ from scipy.signal import butter, lfilter
 from mpl_toolkits.mplot3d import Axes3D
 import seaborn as sns
 import pandas as pd
+from sklearn.decomposition import PCA
 
 
 plt.rcParams.update(
@@ -552,6 +553,52 @@ def cutStimulus2(stimulus_data, required_stimulus):
     return start_index, end_index
 
 
+def cutStimTransition(stimulus_data, required_stimulus):
+    # Convert the stimulus data to a list for easier processing
+    stimulus_data_list = stimulus_data.tolist()
+
+    start_index = None
+    end_index = None
+    in_transition = False
+    rep_counter = 0
+    in_rep = False
+    in_next = False
+
+
+    # Iterate over the stimulus data
+    for i in range(len(stimulus_data_list) - 1):
+        #print("i", i)
+       # print("stim data list i", stimulus_data_list[i])
+
+        if not in_rep and stimulus_data_list[i] == [required_stimulus]:
+            rep_counter += 1
+            in_rep = True
+            print("rep counter" , rep_counter)
+        
+        if in_rep and stimulus_data_list[i] == [0]:
+            in_rep = False
+
+        if rep_counter == 1:
+            start_index = i+2
+        
+        # if rep_counter == 1:
+        #     beg = True
+
+        # if beg and stimulus_data_list[i] == [required_stimulus]:
+        #     start_index = i
+        
+        if stimulus_data_list[i] == [required_stimulus + 1]:
+
+            in_next = True
+
+        if in_next and stimulus_data_list[i] == [0]:
+            end_index = i - 1
+            break
+
+
+    return start_index, end_index
+
+
 
 def KNN_heatmap(model_list: list, emg_train, emg_test, rest_train, rest_test, k_list: list):
 
@@ -608,23 +655,72 @@ def KNN_heatmap(model_list: list, emg_train, emg_test, rest_train, rest_test, k_
 
 def KNN_heatmap_df(model, emg_train, emg_test, rest_train, rest_test, k_list: list, user: int):
 
-    # model list can also just be one model, but for scalability purposes 
+    heatmap_array = np.zeros((1, len(k_list)))
+
+    models_name_list = []
+
+    for indx_k, k in enumerate(k_list): 
+
+
+        train_embedding = model.transform(emg_train)
+        test_embedding = model.transform(emg_test)
+
+
+        KNN_decoder = cebra.KNNDecoder(n_neighbors= k, metric = 'cosine')
+
+        KNN_decoder.fit(train_embedding, rest_train)
+
+
+        KNN_pred = KNN_decoder.predict(test_embedding)
+
+        KNN_decoder = cebra.KNNDecoder(n_neighbors= k, metric = 'cosine')
+
+        # KNN_decoder.fit(emg_train, rest_train)
+
+        KNN_decoder.dit(train_embedding, rest_train)
+
+        KNN_pred = KNN_decoder.predict(emg_test)
+
+        accuracy = accuracy_score(rest_test, KNN_pred)
+
+        print(f'accuracy {indx_k}', accuracy)
+
+        rounded_accuracy = round(accuracy, 3)
+
+
+        # row model, column k
+        heatmap_array[0, indx_k] = rounded_accuracy
+
+        # row ; model
+        # column ; k
+
+        heatmap_df = pd.DataFrame(data = heatmap_array)
+        heatmap_df['user'] = user
+
+    
+        print(heatmap_array)
+
+
+        
+    return heatmap_df
+
+
+
+
+def PCA_KNN_heatmap_df(emg_train, emg_test, rest_train, rest_test, k_list: list, user: int):
+
 
     heatmap_array = np.zeros((1, len(k_list)))
 
     models_name_list = []
 
-    for indx_k, k in enumerate(k_list): # how to determine k -> relevance to number of features ? 
+    for indx_k, k in enumerate(k_list): 
 
-        #model = cebra.CEBRA.load(model_path)
+        pca = PCA(n_components=6)
 
-        #filename = model_path.split('_')[-1].split('.csv')[0]
+        train_embedding = pca.fit_transform(emg_train)
 
-        #models_name_list.append(filename)
-
-        train_embedding = model.transform(emg_train)
-        test_embedding = model.transform(emg_test)
-
+        test_embedding = pca.transform(emg_test)
 
         KNN_decoder = cebra.KNNDecoder(n_neighbors= k, metric = 'cosine')
 
@@ -642,25 +738,28 @@ def KNN_heatmap_df(model, emg_train, emg_test, rest_train, rest_test, k_list: li
         # row model, column k
         heatmap_array[0, indx_k] = rounded_accuracy
 
-        # row = model
-        # column = k
+        # row ; model
+        # column ; k
 
-        #heatmap_df = pd.DataFrame(data = heatmap_array, index = f"User: {user}")
         heatmap_df = pd.DataFrame(data = heatmap_array)
+        heatmap_df['user'] = user
+        print("inside PCA for user", user)
+
 
     
         print(heatmap_array)
-
-
-
-    plt.figure(figsize=(10, 10))
-    sns.heatmap(heatmap_array, vmin = 0, vmax = 1)
-    plt.xticks(ticks=np.arange(len(k_list)), labels=k_list)
-    # plt.yticks(ticks = np.arange(len(models_name_list)), labels = models_name_list)
-    # plt.yticks(rotation = 90)
-    plt.title("Heatmap for model and k parameters")
-    plt.xlabel("K")
-    plt.savefig(f"./classification_results/KNN_heatmap_user{user}.png")
-    #plt.show()
-
+    
     return heatmap_df
+
+
+
+    # plt.figure(figsize=(10, 10))
+    # sns.heatmap(heatmap_array, vmin = 0, vmax = 1)
+    # plt.xticks(ticks=np.arange(len(k_list)), labels=k_list)
+    # # plt.yticks(ticks = np.arange(len(models_name_list)), labels = models_name_list)
+    # # plt.yticks(rotation = 90)
+    # plt.title("Heatmap for PCA and k parameters")
+    # plt.xlabel("K")
+    # plt.savefig(f"./classification_results/PCA_KNN_heatmap_user{user}.png")
+    # #plt.show()
+
