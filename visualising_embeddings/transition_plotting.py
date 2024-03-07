@@ -45,13 +45,11 @@ gesture = 3
 
 
 start, end = auxf.cutStimTransition(restim, gesture)
-print(start, end)
-
 num_channels_emg = emg.shape[1]
 
 
-WL_channels = np.arange(0, num_channels_emg, 2)
-LV_channels = np.arange(1, num_channels_emg, 2)
+LV_channels = np.arange(0, num_channels_emg, 2)
+WL_channels = np.arange(1, num_channels_emg, 2)
 
 
 fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, 1, figsize=(14, 12))
@@ -69,13 +67,13 @@ ax1.set_yticks([0, gesture, gesture + 1])
 ax2.set_title("EMG Log Variance - Corresponding Segment")
 ax2.set_xlabel("Windows")
 ax2.set_ylabel("Log Variance")
-ax2.plot(np.arange(start, end, 1), emg[start: end, WL_channels])
+ax2.plot(np.arange(start, end, 1), emg[start: end, LV_channels])
 
 # Second subplot for emg data
 ax3.set_title("EMG Waveform Length - Corresponding Segment")
 ax3.set_xlabel("Windows")
 ax3.set_ylabel("Waveform Length")
-ax3.plot(np.arange(start, end, 1), emg[start: end, LV_channels])
+ax3.plot(np.arange(start, end, 1), emg[start: end, WL_channels])
 
 
 ax4.set_title("Glove Data - Corresponding Segment")
@@ -89,15 +87,5 @@ plt.tight_layout()
 
 # Save the figure
 plt.savefig(f"./visualising_embeddings/images_saved/transition_stimulus_emg_{gesture}_{gesture+1}.png")
-
-# fig, ax = plt.subplots(figsize = (12, 6))
-
-# plt.title("Stimulus data - Transition")
-# plt.xlabel("Windows")
-# plt.ylabel("Gesture")
-
-# plt.plot(np.arange(start, end, 1), restim[start: end], 'black')
-
-# plt.savefig("./images_saved/transition_stimulus_6_7.png")
 
 plt.show()
