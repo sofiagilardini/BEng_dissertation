@@ -36,8 +36,9 @@ from sklearn.decomposition import PCA
 
 gestures = np.arange(1, 10, 1)
 
-dim_list = [2, 3]
-user_list = [1, 2, 3, 6, 7]
+dim_list = [3]
+user_list = [7, 6, 3, 1, 2]
+# user_list = [7, 6, 3, 2, 1]
 
 
 
@@ -57,7 +58,6 @@ for user in user_list:
     restim_test = auxf.getProcessedData(user = user, dataset = 3, type_data = 'test', mode = 'restimulus').astype(int)
 
 
-
     for dim in dim_list:
 
         if dim == 3:
@@ -65,6 +65,7 @@ for user in user_list:
 
         if dim == 2:
             fig, axes = plt.subplots(3, 3, figsize=(20, 20))  
+            continue
 
 
         iterations = 10000
@@ -72,8 +73,9 @@ for user in user_list:
 
         cebra_model = CEBRA(
             model_architecture = 'offset10-model',
-            batch_size= 64,
+            batch_size= 256,
             temperature_mode='auto',
+            min_temperature= 1.2,
             learning_rate = 0.0001,
             max_iterations = iterations,
             time_offsets = 25,
@@ -81,15 +83,24 @@ for user in user_list:
             device = "cuda_if_available",
             verbose = True,
             conditional='time_delta',
-            distance = 'cosine',
-        )
+            distance = 'cosine' 
+        )   
 
-        cebra_model.partial_fit(emg_tr1, glove_tr1, restim_tr1)
-        cebra_model.partial_fit(emg_tr2, glove_tr2, restim_tr1)
 
-        cebra_model.save(f"./visualising_embeddings/models/user{user}_dim{dim}.pt")
-        cebra.plot_loss(cebra_model)
-        plt.savefig(f"./visualising_embeddings/models/user{user}_dim{dim}_loss.png")
+        #glove_channels = [1, 4, 6, 8, 11, 14]
+
+        glove_channels = [0, 3, 5, 7, 10, 13] # because 0 index
+
+
+        # cebra_model.partial_fit(emg_tr1, glove_tr1[: , glove_channels])
+        # cebra_model.partial_fit(emg_tr2, glove_tr2[:, glove_channels])
+
+        location = "models_glove_channelscut"
+
+        # cebra_model.save(f"./visualising_embeddings/{location}/models/user{user}_dim{dim}.pt")
+        # cebra.plot_loss(cebra_model)
+        # plt.savefig(f"./visualising_embeddings/{location}/models/user{user}_dim{dim}_loss.png")
+        cebra_model = cebra.CEBRA.load(f"./visualising_embeddings/{location}/models/user{user}_dim{dim}.pt")
 
 
         axes = axes.flatten()
@@ -101,42 +112,125 @@ for user in user_list:
             gesture = gestures[i]
             print("gesture", gesture)
 
+
             start, end = auxf.cutStimTransition(restim_test, gesture)
+            print(f"on gesture {gesture}, start {start}, end {end}")
             num_channels_emg = emg_tr1.shape[1]
 
-            embedding = cebra_model.transform(emg_test[start:end])
+
+            if gesture != 9:
+                embedding = cebra_model.transform(emg_test[start:(end)])
+                labels = restim_test[start: (end)]
+            else: 
+                embedding = cebra_model.transform(emg_test[start:(end)])
+                labels = restim_test[start: (end)]
+
 
             print('embedding shape', embedding.shape)
 
+            labels = labels.flatten()
+            print(labels)
 
-            # Plotting the embedding on each subplot
-            cebra.plot_embedding(embedding, cmap = "magma", markersize=5, alpha = 0.5, embedding_labels='time', ax = ax, title = f"Gesture {gesture}, User {user}")
+
+
+
+            # # Plotting the embedding on each subplot
+            cebra.plot_embedding(embedding, cmap = 'magma', markersize=7, alpha = 0.8, embedding_labels= 'time', ax = ax, title = f"Gesture {gesture}, User {user}")
+
+
+
+
+            # # Generate a unique color for each label
+            # unique_labels = np.unique(labels)
+            # colors = plt.cm.jet(np.linspace(0, 1, len(unique_labels)))
+            # label_color_dict = dict(zip(unique_labels, colors))
+            
+
+            
+            # # all_labels = [10, 7, ]
+            all_labels = [0, 1, 2, 3, 4,5, 6, 7, 8, 9 ,10]
+
+            unique_labels = np.unique(all_labels)
+            colors = plt.cm.jet(np.linspace(0, 1, len(all_labels)))
+
+            #Create a mapping from labels to colors
+            color_map = dict(zip(unique_labels, colors))
+
+            # all_labels = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+
+            # # Unique labels from your data
+            # unique_labels = np.unique(all_labels)
+
+            # # Initialize an empty dictionary for color mapping
+            # color_map = {}
+
+            # # Assign black to label '0'
+            # color_map[0] = 'white'
+
+            # # Use a colormap for the rest of the labels
+            # colors = plt.cm.jet(np.linspace(0, 1, len(unique_labels) - 1))  # We subtract 1 because '0' is already assigned
+
+            # # Assign the rest of the colors
+            # for i, label in enumerate(unique_labels):
+            #     if label != 0:
+            #         color_map[label] = colors[i - 1]  # Subtract 1 to account for the black color already assigned
+
+
+            # Assign colors to each data point
+            point_colors = [color_map[label] for label in labels]
+
 
             # Customizing each subplot
-            ax.set_facecolor('black')
+            ax.set_facecolor('dimgray')
 
             xticks = np.arange(-1, 1, 0.5)
 
 
+            from matplotlib.patches import Patch
+            legend_handles = [Patch(color=color_map[label], label=label) for label in unique_labels]
+
+
             if dim == 3:
-                ax.set_title(f"Gesture {gesture}, User {user}" , color = 'white', fontsize = 15)
+                #ax.scatter(embedding[:, 0], embedding[:, 1], embedding[:, 2], c = point_colors, s = 7, alpha = 0.8)
+                ax.set_title(f"Gesture {gesture} to {gesture + 1}, User {user}" , color = 'black', fontsize = 15)
                 ax.tick_params(axis='x', colors='white', size = 5)
                 ax.tick_params(axis='y', colors='white', size = 5)
                 ax.tick_params(axis='z', colors='white', size = 5)
+
+                #ax.legend(handles=legend_handles)
+                #ax.legend(labels)
                 # ax.set_xticks(xticks)
                 # ax.set_yticks(xticks)
+                # for i, label in enumerate(labels):
+                #     x, y, z = embedding[i]
+                #     ax.text(x, y, z, int(label))
+
+
 
 
 
             if dim == 2:
-                ax.set_title(f"Gesture {gesture}, User {user}" , color = 'black', fontsize = 15)
+                continue
+                ax.scatter(embedding[:, 0], embedding[:, 1], c = point_colors, s = 7, alpha = 0.8)
+                ax.set_title(f"Gesture {gesture} to {gesture + 1}, User {user}" , color = 'black', fontsize = 15)
                 ax.tick_params(axis='x', colors='black')
                 ax.tick_params(axis='y', colors='black')
+                #ax.legend(handles=legend_handles)
+
+                #ax.legend(labels)
                 # ax.set_xticks(xticks)
+                # for i, label in enumerate(labels):
+                #     x, y,= embedding[i]
+                #     ax.text(x, y, int(label))
+
+                
+
+    
+        fig.legend(handles=legend_handles, loc='upper right', bbox_to_anchor=(1, 1))  # You can adjust the location as needed
 
 
+        plt.show()
 
-
-        fig.savefig(f"./visualising_embeddings/embeddings/user{user}_dim{dim}.png")
+        #fig.savefig(f"./visualising_embeddings/{location}/embeddings/user{user}_dim{dim}.png")
 
     
