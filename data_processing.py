@@ -28,94 +28,73 @@ win_stride = 52
 cutoff_f = 450
 
 
-num_users = 7
+list_users = [1, 2, 3, 4, 5, 6, 7, 10]
+# feat_ID_list = ['raw', 'all', "RMS"]
+feat_ID_list = ['raw']
 
-# for user in range(num_users):
-#     for dataset in range(3):
-
-#         dataset = dataset + 1
-#         user = user + 1
-
-# auxf.emg_process(cutoff_val = cutoff_f, size_val = win_size, stride_val = win_stride, user = 2, dataset=1, order = order)
-# auxf.glove_process(size_val = win_size, stride_val = win_stride, user = user, dataset = dataset)
-# auxf.restimulusProcess(size_val= win_size, stride_val= win_stride, user = user, dataset= dataset)
+dataset_list = [1, 2, 3]
+rawBool_list = [True, False]
 
 
 
-for user in range(3):
+def runEMG():
+    for user in list_users:
+        for feat_ID in feat_ID_list:
+            for dataset in dataset_list:
 
-    user = user+1
+                print('user in processing', user)
 
-    print('user in processing', user)
-
-    auxf.emg_process(cutoff_val = cutoff_f, size_val = win_size, stride_val = win_stride, user = user, dataset=1, order = order)
-    auxf.glove_process(size_val = win_size, stride_val = win_stride, user = user, dataset = 1)
-    auxf.restimulusProcess(size_val= win_size, stride_val= win_stride, user = user, dataset= 1)
-
+                auxf.emg_process(cutoff_val = cutoff_f, size_val = win_size, stride_val = win_stride, user = user, dataset=dataset, order = order, feat_ID=feat_ID)
 
 
-    auxf.emg_process(cutoff_val = cutoff_f, size_val = win_size, stride_val = win_stride, user = user, dataset=2, order = order)
-    auxf.glove_process(size_val = win_size, stride_val = win_stride, user = user, dataset = 2)
-    auxf.restimulusProcess(size_val= win_size, stride_val= win_stride, user = user, dataset= 2)
-    
-    print(user)
+def runRest():
+    for rawBool in rawBool_list:
+        for user in list_users:
+            for dataset in dataset_list:
+                print('user in processing', user)
 
-    auxf.emg_process(cutoff_val = cutoff_f, size_val = win_size, stride_val = win_stride, user = user, dataset=3, order = order)
-    auxf.glove_process(size_val = win_size, stride_val = win_stride, user = user, dataset = 3)
-    auxf.restimulusProcess(size_val= win_size, stride_val= win_stride, user = user, dataset= 3)
-
-
-# for dataset in range(4):
-
-#     dataset = dataset + 1
-
-#     auxf.emg_process(cutoff_val = cutoff_f, size_val = win_size, stride_val = win_stride, user = user, dataset=dataset, order = order)
-#     auxf.glove_process(size_val = win_size, stride_val = win_stride, user = user, dataset = dataset)
-#     auxf.restimulusProcess(size_val= win_size, stride_val= win_stride, user = user, dataset= dataset)
-
-
-
-# # dataset 1
-
-# dataset = 1
-
-# auxf.emg_process(cutoff_val = cutoff_f, size_val = win_size, stride_val = win_stride, user = 1, dataset=dataset, order = order)
-# auxf.glove_process(size_val = win_size, stride_val = win_stride, user = 1, dataset = dataset)
-# auxf.restimulusProcess(size_val= win_size, stride_val= win_stride, user = 1, dataset= dataset)
-
-
-# # dataset 2
-
-# dataset = 2
-
-# auxf.emg_process(cutoff_val = cutoff_f, size_val = win_size, stride_val = win_stride, user = 1, dataset=dataset, order = order)
-# auxf.glove_process(size_val = win_size, stride_val = win_stride, user = 1, dataset = dataset)
-# auxf.restimulusProcess(size_val= win_size, stride_val= win_stride, user = 1, dataset= dataset)
-
-# #dataset 3 
-
-# dataset = 3
-
-# auxf.emg_process(cutoff_val = cutoff_f, size_val = win_size, stride_val = win_stride, user = 1, dataset=dataset, order = order)
-# auxf.glove_process(size_val = win_size, stride_val = win_stride, user = 1, dataset = dataset)
-# auxf.restimulusProcess(size_val= win_size, stride_val= win_stride, user = 1, dataset= dataset)
+                auxf.glove_process(size_val = win_size, stride_val = win_stride, user = user, dataset = dataset, rawBool = rawBool)
+                auxf.restimulusProcess(size_val= win_size, stride_val= win_stride, user = user, dataset= dataset, rawBool = rawBool)
 
 
 
 
 
 
-# glove = np.load("/home/sofia/beng_thesis/glove_data_processed/glove_1_1_256_1.npy")
+# perform quick check on the data running models 
+# this should throw no errors - ensuring downstream is clean
+                
+            
 
-# print(glove.shape)
+model = CEBRA(
+                model_architecture = 'offset10-model',
+                batch_size= 64,
+                temperature_mode='auto',
+                learning_rate = 0.0001,
+                max_iterations = 10,
+                min_temperature=1.2,
+                time_offsets = 25,
+                output_dimension = 3, 
+                device = "cuda_if_available",
+                verbose = True,
+                conditional='time_delta',
+                distance = 'cosine' 
+            )   
 
-# restimulus_data = np.load("/home/sofia/beng_thesis/restimulus_data_processed/restimulus_1_1_256_1.npy")
+
+directory = './processed_data'
 
 
-# print(restimulus_data.shape)
 
-# restimulus_data = pd.DataFrame(data = restimulus_data)
+for dirpath, dirnames, filenames in os.walk(directory):
+    for filename in filenames:
+        file_path = os.path.join(dirpath, filename)
+        data = np.load(file_path)
 
-# isna = restimulus_data.isna()[:1000]
+        if file_path.__contains__("5"):
+            continue # user 5 has NaN errors in the glove data 
 
-# print(isna)
+        print("fitting on", file_path)
+        print("shape", data.shape)
+
+        model.fit(data)
