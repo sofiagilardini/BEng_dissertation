@@ -15,6 +15,8 @@ from mpl_toolkits.mplot3d import Axes3D
 import seaborn as sns
 import pandas as pd
 from sklearn.decomposition import PCA
+import os
+from sklearn.preprocessing import StandardScaler
 
 
 plt.rcParams.update(
@@ -50,7 +52,26 @@ def getProcessedData(user: int, dataset: int, type_data: str, mode: str):
     winsize = 128
     winstride = 52
     cutoff = 450
+
     feat_ID = '0102'
+
+    if mode == 'emg':
+
+    # data = scipy.io.loadmat(f"./processed_data/{type_data}_data/{mode}_data_processed/{mode}_{user}_{dataset}_{cutoff}_{winsize}_{winstride}_{feat_ID}")
+        data = np.load(f"./{type_data}_data/{mode}_data_processed/{mode}_{user}_{dataset}_{cutoff}_{winsize}_{winstride}_{feat_ID}.npy")
+
+    else: 
+        data = np.load(f"./{type_data}_data/{mode}_data_processed/{mode}_{user}_{dataset}_{winsize}_{winstride}.npy")
+
+
+    return data
+
+
+def getProcessedEMG(user: int, dataset: int, type_data: str, mode: str, feat_ID: str):
+
+    winsize = 128
+    winstride = 52
+    cutoff = 450
 
     if mode == 'emg':
 
@@ -216,7 +237,6 @@ def WL(windows_array, win_size, win_stride):
 
     for window in windows_array:
         window_WL = 1/win_size * np.sum(np.abs(np.diff(window)))
-        print('window_WL', window_WL)
         windows_WL_list.append(window_WL)
     
     windows_WL_array = np.array(windows_WL_list) # should be one dimensional (num_windows,)
@@ -226,19 +246,53 @@ def WL(windows_array, win_size, win_stride):
 def LV(windows_array, win_size):
     windows_LV_list = []
     for window in windows_array:
-        print('var window', np.var(window))
+        # print('var window', np.var(window))
 
         # log smoothing needed 
 
         epsilon = 1e-15
 
         window_LV = np.log10(np.var(window)+epsilon) # 
-        print('window LV', window_LV)
+        # print('window LV', window_LV)
         windows_LV_list.append(window_LV)
     windows_LV_array = np.array(windows_LV_list)
     #print(windows_LV_array.shape)
 
     return windows_LV_array
+
+
+def RMS(windows_array, win_size, win_stride):
+
+    windows_RMS_list = []
+
+    for window in windows_array:
+
+        window_RMS = np.sqrt(np.mean(np.square(window)))
+        windows_RMS_list.append(window_RMS) 
+    windows_RMS_array = np.array(windows_RMS_list)
+
+    return windows_RMS_array
+
+def SSC(windows_array, win_size, win_stride, thr= 0):
+
+    windows_SSC_list = []
+
+    for window in windows_array:
+
+        diff1 = window[1:-1] - window[: -2]
+        diff2 = window[1-1] - window[2:]
+
+        ssc = (diff1 * diff2) > thr
+        
+        ssc_count = np.sum(ssc)
+
+        windows_SSC_list.append(ssc_count)
+    
+    windows_SSC_array = np.array(windows_SSC_list)
+
+    return windows_SSC_array
+
+
 
 def slidingWindowParameters(frequency, size_secs, stride_secs):
     # NB: size and stride should be in Seconds (150ms = 150 * 10**(-3))
@@ -254,23 +308,71 @@ def slidingWindowParameters(frequency, size_secs, stride_secs):
 
 ### ------- EMG , GLOVE AND RESTIMULUS PROCESSING START ----- ###
 
-def emg_process(cutoff_val, size_val, stride_val, user, dataset, order):
+def emg_process(cutoff_val, size_val, stride_val, user, dataset, order, feat_ID: str):
+        
 
-        fs = 2000
+    def ensure_directory_exists(directory):
+        if not os.path.exists(directory):
+            os.makedirs(directory)
 
-        size, stride = slidingWindowParameters(2000, (size_val*10**(-3)), (stride_val*10**(-3)))
 
-        size = int(size)
-        stride = int(stride)
-        # 2. get the data: input is user and which dataset (dataset should only be 1 or 2)
+    if feat_ID == 'raw':
+        raw_bool = True
+        WL_bool = False
+        LV_bool = False
+        RMS_bool = False
+        # SSC_bool = False 
+    
+    if feat_ID == 'all':
+        raw_bool = False
+        WL_bool = True
+        LV_bool = True
+        RMS_bool = True
+        # SSC_bool = True
+    
+    if feat_ID == 'RMS':
+        raw_bool = False
+        WL_bool = False
+        LV_bool = False
+        RMS_bool = True
+        # SSC_bool = False
 
-        emg_u1_d1, glove_u1_d1, stimulus_u1_d1 = getdata(user = user, dataset = dataset)
+    
+    fs = 2000
 
-        # 3. low-pass filter the EMG data and extract features
+    size, stride = slidingWindowParameters(2000, (size_val*10**(-3)), (stride_val*10**(-3)))
 
-        for i in range(emg_u1_d1.shape[1]):
-            emg_u1_d1[:, i] = lowpass_filter(emg_u1_d1[:, i], cutoff_val, fs, order)
+    size = int(size)
+    stride = int(stride)
+    # 2. get the data: input is user and which dataset (dataset should only be 1 or 2)
 
+    emg_u1_d1, glove_u1_d1, stimulus_u1_d1 = getdata(user = user, dataset = dataset)
+
+    # 3. low-pass filter the EMG data and extract features
+
+    for i in range(emg_u1_d1.shape[1]):
+        emg_u1_d1[:, i] = lowpass_filter(emg_u1_d1[:, i], cutoff_val, fs, order)
+
+    del glove_u1_d1, stimulus_u1_d1
+
+    if raw_bool: 
+
+
+        # standardise the data 
+
+        scaler = StandardScaler()
+        emg_u1_d1 = scaler.fit_transform(emg_u1_d1)
+
+        emg_data_ID = f"{user}_{dataset}"
+
+        directory = f"./processed_data/emg_raw"
+
+        ensure_directory_exists(directory)
+    
+        np.save(f"{directory}/emg_{emg_data_ID}.npy", emg_u1_d1)
+
+
+    if not raw_bool:
 
         emg_windows = []
 
@@ -278,139 +380,193 @@ def emg_process(cutoff_val, size_val, stride_val, user, dataset, order):
         num_channelsEMG = emg_u1_d1.shape[1] 
 
 
-        # low pass and features = [WL and LV] -> 
-        # for i in range(num_channelsEMG):
+        # low pass and features -> 
 
         for i in range(num_channelsEMG):
+            
+            
             emg_window = slidingWindowEMG(emg_u1_d1[:, i], size, stride)
-            print("emg windowing at step ", i)
-            emg_window_WL = WL(emg_window, size, stride) 
-            #print("emg WL extracting at step ", i)
-            WL_bool = True
-            emg_window_LV = LV(emg_window, size)
-            #print("emg LV extracting at step ", i)
-            LV_bool = True
-            print('length emg window', len(emg_window))
-            emg_windows.append(emg_window_WL)
-            emg_windows.append(emg_window_LV)
+
+            if WL_bool: 
+                emg_window_WL = WL(emg_window, size, stride) 
+                emg_windows.append(emg_window_WL)
+
+
+
+            if LV_bool:
+                emg_window_LV = LV(emg_window, size)
+                emg_windows.append(emg_window_LV)
+
+
+
+            if RMS_bool:
+                emg_window_RMS = RMS(emg_window, size, stride)
+                emg_windows.append(emg_window_RMS)
+
+
+
+            # emg_window_SSC = SSC(emg_window, size, stride)
+            # SSC_bool = True
+            # print("SSC", emg_window_SSC)
+
+            # emg_windows.append(emg_window_SSC)
 
 
         emg_windows_stacked = np.array(emg_windows)
         emg_windows_stacked = np.transpose(emg_windows_stacked)
 
-        # if np.isinf(emg_windows_stacked).any() or np.isnan(emg_windows_stacked).any():
-        # # Handle the presence of inf or NaN. Options might include:
-        # # - Raising an error
-        # # - Replacing inf and NaN with a specific value
-        # # - Removing rows/columns containing inf or NaN
-
-        # # For example, to raise an error:
-        #     raise ValueError("The EMG processed data contains 'inf' or 'NaN' values.")
+        scaler = StandardScaler()
+        emg_windows_stacked = scaler.fit_transform(emg_windows_stacked)
 
 
-        if WL_bool == True and LV_bool == True:
-            feat_ID = '0102'
+        directory = f'./processed_data/emg_{feat_ID}/dataset{dataset}'
 
-        
-        if dataset == 1:
-            np.save(f"./training_data/emg_data_processed/emg_{user}_{dataset}_{cutoff_val}_{size_val}_{stride_val}_{feat_ID}.npy", emg_windows_stacked)
-        
-        elif dataset == 2:
-            np.save(f"./validation_data/emg_data_processed/emg_{user}_{dataset}_{cutoff_val}_{size_val}_{stride_val}_{feat_ID}.npy", emg_windows_stacked)
-
-        elif dataset == 3:
-            np.save(f"./test_data/emg_data_processed/emg_{user}_{dataset}_{cutoff_val}_{size_val}_{stride_val}_{feat_ID}.npy", emg_windows_stacked)
-
-
-
-        # np.save(f"./emg_data_processed/emg_{user}_{dataset}_{cutoff_val}_{size_val}_{stride_val}_{feat_ID}.npy", emg_windows_stacked)
-        # print("saved EMG data")
+        ensure_directory_exists(directory)
 
 
         emg_data_ID = f"{user}_{dataset}_{cutoff_val}_{size_val}_{stride_val}_{feat_ID}"
 
-        return emg_data_ID
+        
+        np.save(f"{directory}/emg_{emg_data_ID}.npy", emg_windows_stacked)
 
 
 
+    return emg_data_ID
 
-def glove_process(size_val, stride_val, user, dataset):
-     
-    size, stride = slidingWindowParameters(2000, (size_val*10**(-3)), (stride_val*10**(-3)))
 
-    size = int(size)
-    stride = int(stride)
+
+def glove_process(size_val, stride_val, user, dataset, rawBool: bool):
+
+    def ensure_directory_exists(directory):
+        if not os.path.exists(directory):
+            os.makedirs(directory)
     
     emg_u1_d1, glove_u1_d1, stimulus_u1_d1 = getdata(user = user, dataset = dataset)
 
     del emg_u1_d1, stimulus_u1_d1
 
+    if rawBool == True:  
 
-    # perform sliding windows on the data
-        
-    glove_data = []
+        scaler = StandardScaler()
+        glove_u1_d1 = scaler.fit_transform(glove_u1_d1)
 
-    for i in range(glove_u1_d1.shape[1]):
+        glove_data_ID = f"{user}_{dataset}"
 
-        glove_data.append(slidingWindowGlove(glove_u1_d1[:, i], size, stride))
+        directory = f"./processed_data/glove_raw"
 
+        ensure_directory_exists(directory)
     
-    glove_data_array = np.array(glove_data).T
-
-
-    if dataset == 1:
-        np.save(f"./training_data/glove_data_processed/glove_{user}_{dataset}_{size_val}_{stride_val}.npy", glove_data_array)
-
-    elif dataset == 2:
-        np.save(f"./validation_data/glove_data_processed/glove_{user}_{dataset}_{size_val}_{stride_val}.npy", glove_data_array)
-
-    elif dataset == 3:
-        np.save(f"./test_data/glove_data_processed/glove_{user}_{dataset}_{size_val}_{stride_val}.npy", glove_data_array)
+        np.save(f"{directory}/glove_{glove_data_ID}.npy", glove_u1_d1)
 
 
 
-    # np.save(f"./glove_data_processed/glove_{user}_{dataset}_{size_val}_{stride_val}.npy", glove_data_array)
-    # print("saved glove data")
+    if rawBool == False:
+    
+        size, stride = slidingWindowParameters(2000, (size_val*10**(-3)), (stride_val*10**(-3)))
 
-    glove_data_ID = f"{user}_{dataset}_{size_val}_{stride_val}"
+        size = int(size)
+        stride = int(stride)
+        
+
+        # perform sliding windows on the data
+            
+        glove_data = []
+
+        for i in range(glove_u1_d1.shape[1]):
+
+            glove_data.append(slidingWindowGlove(glove_u1_d1[:, i], size, stride))
+
+        
+        glove_data_array = np.array(glove_data).T
+
+        scaler = StandardScaler()
+        glove_data_array = scaler.fit_transform(glove_data_array)
+
+
+        directory = f'./processed_data/glove/dataset{dataset}'
+
+        def ensure_directory_exists(directory):
+            if not os.path.exists(directory):
+                os.makedirs(directory)
+
+
+        ensure_directory_exists(directory)
+
+
+        glove_data_ID = f"{user}_{dataset}_{size_val}_{stride_val}"
+
+        
+        np.save(f"{directory}/glove_{glove_data_ID}.npy", glove_data_array)
+
+
+
 
     return glove_data_ID
 
 
 
 
-def restimulusProcess(size_val, stride_val, user, dataset):
-    
-    size, stride = slidingWindowParameters(2000, (size_val*10**(-3)), (stride_val*10**(-3)))
+def restimulusProcess(size_val, stride_val, user, dataset, rawBool: bool):
 
-    size = int(size)
-    stride = int(stride)
-    
+
     emg_u1_d1, glove_u1_d1, restimulus_u1_d1 = getdata(user = user, dataset = dataset)
 
     del emg_u1_d1, glove_u1_d1
 
-    restimulus_data = []
-
-    for i in range(restimulus_u1_d1.shape[1]):
-        restimulus_data.append(slidingWindowRestimulus(restimulus_u1_d1[:, i], size, stride))
-
-    restimulus_data_array = np.array(restimulus_data).T
-
-    if dataset == 1:
-        np.save(f"./training_data/restimulus_data_processed/restimulus_{user}_{dataset}_{size_val}_{stride_val}.npy", restimulus_data_array)
-
-    elif dataset == 2:
-        np.save(f"./validation_data/restimulus_data_processed/restimulus_{user}_{dataset}_{size_val}_{stride_val}.npy", restimulus_data_array)
-
-    elif dataset == 3:
-        np.save(f"./test_data/restimulus_data_processed/restimulus_{user}_{dataset}_{size_val}_{stride_val}.npy", restimulus_data_array)
+    def ensure_directory_exists(directory):
+        if not os.path.exists(directory):
+            os.makedirs(directory)
 
 
-    # np.save(f"./restimulus_data_processed/restimulus_{user}_{dataset}_{size_val}_{stride_val}.npy", restimulus_data_array)
-    # print("saved restimulus data")
+    if rawBool == True:     
 
-    restimulus_data_ID = f"{user}_{dataset}_{size_val}_{stride_val}"
+        scaler = StandardScaler()
+        restimulus_u1_d1 = scaler.fit_transform(restimulus_u1_d1)
+
+        restimulus_data_ID = f"{user}_{dataset}"
+
+        directory = f"./processed_data/restimulus_raw/{restimulus_data_ID}.npy"
+
+        ensure_directory_exists(directory)
+    
+        np.save(f"{directory}/restimulus_{restimulus_data_ID}.npy", restimulus_u1_d1)
+
+
+    if rawBool == False:
+    
+        size, stride = slidingWindowParameters(2000, (size_val*10**(-3)), (stride_val*10**(-3)))
+
+        size = int(size)
+        stride = int(stride)
+        
+
+        restimulus_data = []
+
+        for i in range(restimulus_u1_d1.shape[1]):
+            restimulus_data.append(slidingWindowRestimulus(restimulus_u1_d1[:, i], size, stride))
+
+        restimulus_data_array = np.array(restimulus_data).T
+
+
+        scaler = StandardScaler()
+        restimulus_data_array = scaler.fit_transform(restimulus_data_array)
+
+        directory = f'./processed_data/restimulus/dataset{dataset}'
+
+        def ensure_directory_exists(directory):
+            if not os.path.exists(directory):
+                os.makedirs(directory)
+
+
+        ensure_directory_exists(directory)
+
+
+        restimulus_data_ID = f"{user}_{dataset}_{size_val}_{stride_val}"
+
+        
+        np.save(f"{directory}/restimulus_{restimulus_data_ID}.npy", restimulus_data_array)
+
+
 
     return restimulus_data_ID
 
