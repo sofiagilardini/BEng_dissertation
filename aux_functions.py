@@ -17,6 +17,7 @@ import pandas as pd
 from sklearn.decomposition import PCA
 import os
 from sklearn.preprocessing import StandardScaler
+from scipy import stats 
 
 
 plt.rcParams.update(
@@ -47,39 +48,96 @@ def getdata(user, dataset):
 
 
 
-def getProcessedData(user: int, dataset: int, type_data: str, mode: str):
+# def getProcessedData(user: int, dataset: int, type_data: str, mode: str):
+
+#     winsize = 128
+#     winstride = 52
+#     cutoff = 450
+
+#     feat_ID = '0102'
+
+#     if mode == 'emg':
+
+#     # data = scipy.io.loadmat(f"./processed_data/{type_data}_data/{mode}_data_processed/{mode}_{user}_{dataset}_{cutoff}_{winsize}_{winstride}_{feat_ID}")
+#         data = np.load(f"./{type_data}_data/{mode}_data_processed/{mode}_{user}_{dataset}_{cutoff}_{winsize}_{winstride}_{feat_ID}.npy")
+
+#     else: 
+#         data = np.load(f"./{type_data}_data/{mode}_data_processed/{mode}_{user}_{dataset}_{winsize}_{winstride}.npy")
+
+
+#     return data
+
+def getProcessedData(user: int, dataset: int, mode: str, rawBool: bool):
+
+    """
+    mode = ["glove", "restimulus"]
+    
+    """
+
+    if mode == 'emg':
+        raise ValueError("Incorrect mode 'emg'. Use getProcessedEMG()")
+
 
     winsize = 128
     winstride = 52
     cutoff = 450
 
-    feat_ID = '0102'
+    if rawBool: 
+        data = np.load(f"./processed_data/{mode}_raw/dataset{dataset}/{mode}_{user}_{dataset}.npy")
 
-    if mode == 'emg':
+    if not rawBool: 
+        data = np.load(f"./processed_data/{mode}/dataset{dataset}/{mode}_{user}_{dataset}_{winsize}_{winstride}.npy")
 
-    # data = scipy.io.loadmat(f"./processed_data/{type_data}_data/{mode}_data_processed/{mode}_{user}_{dataset}_{cutoff}_{winsize}_{winstride}_{feat_ID}")
-        data = np.load(f"./{type_data}_data/{mode}_data_processed/{mode}_{user}_{dataset}_{cutoff}_{winsize}_{winstride}_{feat_ID}.npy")
 
-    else: 
-        data = np.load(f"./{type_data}_data/{mode}_data_processed/{mode}_{user}_{dataset}_{winsize}_{winstride}.npy")
+    # feat_ID = '0102'
+
+    # if mode == 'emg':
+
+    # # data = scipy.io.loadmat(f"./processed_data/{type_data}_data/{mode}_data_processed/{mode}_{user}_{dataset}_{cutoff}_{winsize}_{winstride}_{feat_ID}")
+    #     data = np.load(f"./{type_data}_data/{mode}_data_processed/{mode}_{user}_{dataset}_{cutoff}_{winsize}_{winstride}_{feat_ID}.npy")
+
+    # else: 
+    #     data = np.load(f"./{type_data}_data/{mode}_data_processed/{mode}_{user}_{dataset}_{winsize}_{winstride}.npy")
 
 
     return data
 
 
-def getProcessedEMG(user: int, dataset: int, type_data: str, mode: str, feat_ID: str):
+def getProcessedEMG(user: int, dataset: int, type_data: str):
+
+    """
+    type_data : ["raw", "all", "RMS"]
+    
+    """
+
+    if type_data == "raw":
+        rawBool = True
+    
+    elif type_data !=  "raw":
+        rawBool = False
+
 
     winsize = 128
     winstride = 52
     cutoff = 450
 
-    if mode == 'emg':
+    if rawBool:
+        data = np.load(f"./processed_data/emg_{type_data}/dataset{dataset}/emg_{user}_{dataset}.npy")
 
-    # data = scipy.io.loadmat(f"./processed_data/{type_data}_data/{mode}_data_processed/{mode}_{user}_{dataset}_{cutoff}_{winsize}_{winstride}_{feat_ID}")
-        data = np.load(f"./{type_data}_data/{mode}_data_processed/{mode}_{user}_{dataset}_{cutoff}_{winsize}_{winstride}_{feat_ID}.npy")
+    
+    if not rawBool:
+        data = np.load(f"./processed_data/emg_{type_data}/dataset{dataset}/emg_{user}_{dataset}_{cutoff}_{winsize}_{winstride}_{type_data}.npy")
 
-    else: 
-        data = np.load(f"./{type_data}_data/{mode}_data_processed/{mode}_{user}_{dataset}_{winsize}_{winstride}.npy")
+    # data = np.load(f"./{type_data}_data/{mode}_data_processed/{mode}_{user}_{dataset}_{cutoff}_{winsize}_{winstride}_{feat_ID}.npy")
+
+
+    # if mode == 'emg':
+
+    # # data = scipy.io.loadmat(f"./processed_data/{type_data}_data/{mode}_data_processed/{mode}_{user}_{dataset}_{cutoff}_{winsize}_{winstride}_{feat_ID}")
+    #     data = np.load(f"./{type_data}_data/{mode}_data_processed/{mode}_{user}_{dataset}_{cutoff}_{winsize}_{winstride}_{feat_ID}.npy")
+
+    # else: 
+    #     data = np.load(f"./{type_data}_data/{mode}_data_processed/{mode}_{user}_{dataset}_{winsize}_{winstride}.npy")
 
 
     return data
@@ -197,30 +255,40 @@ def slidingWindowRestimulus(x, win_size, win_stride):
     for i in range(num_windows):
         start_index = i * win_stride
         end_index = start_index + win_size
-        #window = x[start_index:end_index]
-        #print("window", window)
+        window = x[start_index:end_index]
+        # #print("window", window)
 
-        # window = np.mean(window) # here I am doing mean -> I want to be doing EWMA
-        # windows.append(window)
+        # # window = np.mean(window) # here I am doing mean -> I want to be doing EWMA
+        # # windows.append(window)
 
-        #not doing EWMA but taking mean of last 40% of the window
+        # #not doing EWMA but taking mean of last 40% of the window
 
-        # # Calculate start index for the last 40% of the window
-        mean_start_index = start_index + int(win_size * 0.6)
+        # # # Calculate start index for the last 40% of the window
+        # mean_start_index = start_index + int(win_size * 0.6)
 
-        # print("mean start index", mean_start_index)
+        # # print("mean start index", mean_start_index)
 
-        # Take only the last 40% of the window
-        end_segment_window = x[mean_start_index:end_index]
+        # # Take only the last 40% of the window
+        # end_segment_window = x[mean_start_index:end_index]
 
-        # print(end_segment_window)        
+        # # print(end_segment_window)        
 
-        # Calculate the mean of the last 40%
-        window_mean = np.mean(end_segment_window)
-        #window_mean = np.mean(window)
+        # # Calculate the mean of the last 40%
+        # window_mean = np.mean(end_segment_window)
+        # #window_mean = np.mean(window)
 
 
-        windows.append(window_mean)
+        # windows.append(window_mean)
+
+        # Calculate the mode of the window
+        mode_result = stats.mode(window)
+        
+        if np.isscalar(mode_result.mode):
+            window_mode = mode_result.mode
+        else:
+            window_mode = mode_result.mode[0]
+        
+        windows.append(window_mode)
 
     # convert the list of windows to a numpy array
         
@@ -365,7 +433,7 @@ def emg_process(cutoff_val, size_val, stride_val, user, dataset, order, feat_ID:
 
         emg_data_ID = f"{user}_{dataset}"
 
-        directory = f"./processed_data/emg_raw"
+        directory = f"./processed_data/emg_raw/dataset{dataset}"
 
         ensure_directory_exists(directory)
     
@@ -452,7 +520,7 @@ def glove_process(size_val, stride_val, user, dataset, rawBool: bool):
 
         glove_data_ID = f"{user}_{dataset}"
 
-        directory = f"./processed_data/glove_raw"
+        directory = f"./processed_data/glove_raw/dataset{dataset}"
 
         ensure_directory_exists(directory)
     
@@ -520,16 +588,13 @@ def restimulusProcess(size_val, stride_val, user, dataset, rawBool: bool):
 
     if rawBool == True:     
 
-        scaler = StandardScaler()
-        restimulus_u1_d1 = scaler.fit_transform(restimulus_u1_d1)
-
         restimulus_data_ID = f"{user}_{dataset}"
 
-        directory = f"./processed_data/restimulus_raw/{restimulus_data_ID}.npy"
+        directory = f"./processed_data/restimulus_raw/dataset{dataset}"
 
         ensure_directory_exists(directory)
     
-        np.save(f"{directory}/restimulus_{restimulus_data_ID}.npy", restimulus_u1_d1)
+        np.save(f"{directory}/restimulus_{restimulus_data_ID}.npy", restimulus_u1_d1.astype(int))
 
 
     if rawBool == False:
@@ -547,10 +612,6 @@ def restimulusProcess(size_val, stride_val, user, dataset, rawBool: bool):
 
         restimulus_data_array = np.array(restimulus_data).T
 
-
-        scaler = StandardScaler()
-        restimulus_data_array = scaler.fit_transform(restimulus_data_array)
-
         directory = f'./processed_data/restimulus/dataset{dataset}'
 
         def ensure_directory_exists(directory):
@@ -564,7 +625,7 @@ def restimulusProcess(size_val, stride_val, user, dataset, rawBool: bool):
         restimulus_data_ID = f"{user}_{dataset}_{size_val}_{stride_val}"
 
         
-        np.save(f"{directory}/restimulus_{restimulus_data_ID}.npy", restimulus_data_array)
+        np.save(f"{directory}/restimulus_{restimulus_data_ID}.npy", restimulus_data_array.astype(int))
 
 
 
@@ -658,8 +719,10 @@ def cutStimulus(stimulus_data, required_stimulus):
 
     stimulus_data_list = stimulus_data.tolist()
 
+    final_index = len(stimulus_data)
+
     start_index_flag = False
-    start_index = 5
+    start_index = 0
     end_index = 0
 
     for i in range(len(stimulus_data_list)):
@@ -918,4 +981,68 @@ def PCA_KNN_heatmap_df(emg_train, emg_test, rest_train, rest_test, k_list: list,
     # plt.xlabel("K")
     # plt.savefig(f"./classification_results/PCA_KNN_heatmap_user{user}.png")
     # #plt.show()
+
+
+
+def runCebraCheck(dataset):
+
+    """
+    first order check that all data runs: 
+    """
+
+    model = CEBRA(
+                    model_architecture = 'offset10-model',
+                    batch_size= 64,
+                    temperature_mode='auto',
+                    learning_rate = 0.0001,
+                    max_iterations = 10,
+                    min_temperature=1.2,
+                    time_offsets = 25,
+                    output_dimension = 3, 
+                    device = "cuda_if_available",
+                    verbose = True,
+                    conditional='time_delta',
+                    distance = 'cosine' 
+                )   
+
+
+    directory = './processed_data'
+
+    model.fit(dataset)
+
+    return model
+
+
+
+def ensure_directory_exists(directory):
+
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
+
+
+def extract_model_params(path):
+    
+    """"
+
+    returns type_training, user, emg_type, batch_size, mintemp, iterations
+    
+    """
+
+    list_dirs = path.split("/")
+    
+    type_training = list_dirs[4]
+
+    filename = os.path.basename(path)
+
+    parts = filename.split('_')
+    
+    user = parts[1]
+    emg_type = parts[2]
+    batch_size = parts[4]
+    mintemp = parts[5].replace('mintemp', '')
+    iterations = parts[6].split('.')[0].replace('it', '')
+
+    return type_training, user, emg_type, batch_size, mintemp, iterations
+    
 

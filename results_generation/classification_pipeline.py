@@ -49,9 +49,9 @@ list_models = []
 dim = 3 
 k = 201 # to review
 
-directory = "./results_generation/model_training/restimulus_classification"
+directory_loadmodels = "./results_generation/model_training/restimulus_classification"
 
-for dirpath, dirnames, filenames in os.walk(directory):
+for dirpath, dirnames, filenames in os.walk(directory_loadmodels):
     for filename in filenames:
         file_path = os.path.join(dirpath, filename)
         
@@ -62,62 +62,99 @@ for dirpath, dirnames, filenames in os.walk(directory):
             print(model_path)
 
 
-def plot_lda_cebra(lda_embedding, cebra_embedding, restim_test):
+def plot_lda_cebra(lda_embedding, cebra_embedding, restim_test, user, modelID):
 
-    labels = restim_test
-    labels = labels.flatten()
+    gestures = [1, 2, 3, 4, 5, 6 ,7, 8 ,9]
 
-    all_labels = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-    unique_labels = np.unique(all_labels)
+    for gesture in gestures:
 
-    # Create a new colormap from jet, but make the lowest value white
-    jet = plt.cm.get_cmap('jet', len(all_labels))
-    colors = jet(np.linspace(0, 1, len(all_labels)))
-    colors[0] = (1, 1, 1, 1)  # RGBA for white
+        print('gesture', gesture)
 
-    custom_cmap = LinearSegmentedColormap.from_list('custom_jet', colors, N=len(colors))
+        start, end = auxf.cutStimulus(restim_test, gesture)
+        print("start", start)
+        print("end", end)
 
-    # Create a mapping from labels to colors
-    color_map = dict(zip(unique_labels, custom_cmap(np.linspace(0, 1, len(unique_labels)))))
+        if gesture == 9:
+            end = len(restim_test)
 
-    # Assign colors to each data point
-    point_colors = [color_map[label] for label in labels]
+        restim_test_ = restim_test[start:end]
 
+        labels = restim_test_
+        labels = labels.flatten()
 
-    fig, axes = plt.subplots(1, 2, figsize = (15 ,15), subplot_kw={'projection' : '3d'})
+        all_labels = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        unique_labels = np.unique(all_labels)
 
-    axes[0].scatter(lda_embedding[:, 0], lda_embedding[:, 1], lda_embedding[:, 2], label = "LDA Embedding", c = point_colors)
-    axes[1].scatter(cebra_embedding[:, 0], cebra_embedding[:, 1], cebra_embedding[:, 2], label = "CEBRA Embedding", c = point_colors)
+        # Create a new colormap from jet, but make the lowest value white
+        jet = plt.cm.get_cmap('jet', len(all_labels))
+        colors = jet(np.linspace(0, 1, len(all_labels)))
+        colors[0] = (1, 1, 1, 1)  # RGBA for white
 
-    axes = axes.flatten()
+        custom_cmap = LinearSegmentedColormap.from_list('custom_jet', colors, N=len(colors))
 
-    for i, ax in enumerate(axes):
+        # Create a mapping from labels to colors
+        color_map = dict(zip(unique_labels, custom_cmap(np.linspace(0, 1, len(unique_labels)))))
 
-        gridline_color = 'dimgray'
+        # Assign colors to each data point
+        point_colors = [color_map[label] for label in labels]
 
-        for axis in [ax.xaxis, ax.yaxis, ax.zaxis]:
-            axis._axinfo["grid"].update({"color": gridline_color})
-
-
-        # Customizing each subplot
-        ax.set_facecolor('black')
-        axis_pane_color = 'black'
-        ax.xaxis.set_pane_color(axis_pane_color)
-        ax.yaxis.set_pane_color(axis_pane_color)
-        ax.zaxis.set_pane_color(axis_pane_color)
+        lda_embedding_plt = lda_embedding[start:end, :]
+        cebra_embedding_plt = cebra_embedding[start:end, :]
 
 
-    legend_handles = [Patch(color=color_map[label], label=label) for label in unique_labels]
-    fig.legend(handles=legend_handles, loc='upper right', bbox_to_anchor=(1, 0.75), title = 'Gesture', fontsize = 10) 
+        fig, axes = plt.subplots(1, 2, figsize = (15 ,15), subplot_kw={'projection' : '3d'})
 
-    plt.show()
+        miniplotsize = 14
+        labelsize = 10
+
+        axes[0].scatter(lda_embedding_plt[:, 0], lda_embedding_plt[:, 1], lda_embedding_plt[:, 2], label = "LDA Embedding", c = point_colors)
+        axes[1].scatter(cebra_embedding_plt[:, 0], cebra_embedding_plt[:, 1], cebra_embedding_plt[:, 2], label = "CEBRA Embedding", c = point_colors)
+        # axes[0].set_title(f"LDA Embedding, Gesture {gesture} and 'Rest', User {user}" , color = 'white', fontsize = miniplotsize, y = 0.97)
+        # axes[1].set_title(f"CEBRA Embedding, Gesture {gesture} and 'Rest', User {user}" , color = 'white', fontsize = miniplotsize, y = 0.97)
+        axes[0].set_title(f"LDA Embedding, Gesture {gesture} and 'Rest', User {user}" , color = 'white', fontsize = miniplotsize)
+        axes[1].set_title(f"CEBRA Embedding, Gesture {gesture} and 'Rest', User {user}" , color = 'white', fontsize = miniplotsize)
+
+
+        axes = axes.flatten()
+
+        for i, ax in enumerate(axes):
+
+            gridline_color = 'dimgray'
+
+            for axis in [ax.xaxis, ax.yaxis, ax.zaxis]:
+                axis._axinfo["grid"].update({"color": gridline_color})
+
+
+            # Customizing each subplot
+            ax.set_facecolor('black')
+            axis_pane_color = 'black'
+            ax.xaxis.set_pane_color(axis_pane_color)
+            ax.yaxis.set_pane_color(axis_pane_color)
+            ax.zaxis.set_pane_color(axis_pane_color)
+            ax.tick_params(axis='x', colors='white', size = 1)
+            ax.xaxis.set_tick_params(labelsize=labelsize) 
+            ax.tick_params(axis='y', colors='white', size = 1)
+            ax.yaxis.set_tick_params(labelsize=labelsize)
+            ax.tick_params(axis='z', colors='white', size = 1)
+            ax.zaxis.set_tick_params(labelsize=labelsize) 
+    
+
+
+        legend_handles = [Patch(color=color_map[label], label=label) for label in unique_labels]
+        fig.legend(handles=legend_handles, loc='upper right', bbox_to_anchor=(1, 0.75), title = 'Gesture', fontsize = 10) 
+
+        directory_results_plots = f'./results_generation/restimulus_classification/results_plots'
+        auxf.ensure_directory_exists(directory_results_plots)
+
+        plt.suptitle(f"{modelID}_user{user}_{gesture}")
+
+        plt.savefig(f"{directory_results_plots}/LDA_CEBRA_{modelID}_{gesture}.png")
 
 
 
 
-for i, model in enumerate(list_models):
 
-    model_path = list_models[i]
+def runKNNComparison(model_path):
 
     model = cebra.CEBRA.load(model_path)
 
@@ -125,7 +162,6 @@ for i, model in enumerate(list_models):
     directory = os.path.dirname(directory)
 
 
-    print("directory", directory)
 
     type_training, user, emg_type, batch_size, min_temp, iterations = auxf.extract_model_params(model_path)
 
@@ -136,7 +172,6 @@ for i, model in enumerate(list_models):
         rawBool = False
 
     model_ID = f"user_{user}_{emg_type}_batch_{batch_size}_mintemp{min_temp}_it{iterations}"
-    print("modelID", model_ID)
 
 
 
@@ -177,8 +212,11 @@ for i, model in enumerate(list_models):
     # this also needs to be plotted
     emg_lda_test = lda.transform(emg_test)
 
-
-    plot_lda_cebra(emg_lda_test, test_embedding, restim_test)
+    # #plot_lda_cebra(lda_embedding=emg_lda_test, 
+    #                cebra_embedding=test_embedding, 
+    #                restim_test=restim_test, 
+    #                user=user, 
+    #                modelID=model_ID)
 
 
     # LDA KNN
@@ -202,9 +240,11 @@ for i, model in enumerate(list_models):
 
 
     df_row = {'model_name' : model_ID,
+              "emg_type" : emg_type,
+              "min_temp" : min_temp,
     'dim' : dim, 
     'batch_size' : batch_size, 
-    'user_test' : user, 
+    'user' : user, 
     'iterations' : iterations,
     "lda_knn_accuracy" : lda_knn_accuracy, 
     "cebra_knn_accuracy" : cebra_knn_accuracy,
@@ -226,6 +266,75 @@ for i, model in enumerate(list_models):
 
     print(df_row)
 
-    #return df_row
+    return df_row
+
+
+results_list = []
+
+results_df_inter = pd.DataFrame(columns = ['model_name',
+              'emg_type',
+              'min_temp',
+              'dim', 
+              'batch_size', 
+              'user',
+              'iterations',
+              "lda_knn_accuracy", 
+              "cebra_knn_accuracy",
+              "% _ difference",
+              "cebra_outperform"
+              ])
+
+
+
+directory_results_df = f'./results_generation/restimulus_classification/results_dataframes'
+auxf.ensure_directory_exists(directory_results_df)
+
+
+results_path = f"{directory_results_df}/LDA_Comparison.csv"
+results_df_inter.to_csv(results_path)
+
+
+def runComparison():
+    for model in list_models:
+        df_row = runKNNComparison(model)
+        results_list.append(df_row)
+        df_row = pd.DataFrame(data=[df_row]) 
+
+        results_stored = pd.read_csv(results_path)
+        results_df = pd.concat([results_stored, df_row])
+        results_df.to_csv(results_path, index = False)
+
+
+
+results_df = pd.read_csv("results_generation/restimulus_classification/results_dataframes/LDA_Comparison_saved.csv")
+
+
+
+
+
+mintemp_list = [0.1, 0.3, 0.5, 0.7, 1, 1.2, 1.5]
+mean_mintemp_lists = []
+
+for min_temp in mintemp_list: 
+
+    mintemp_list = []
+    mintemp_list.append(min_temp)
+    mean_improvement = round(results_df["% _ difference"][results_df['min_temp'] == min_temp].mean(), 3)
+    mean_accuracy = round(results_df["cebra_knn_accuracy"][results_df['min_temp'] == min_temp].mean(), 3)
+
+    print(mean_accuracy)
+    mintemp_list.append(mean_improvement)
+    mintemp_list.append(mean_accuracy)
+
+    mean_mintemp_lists.append(mintemp_list)
+
+
+mintemp_results_path = f"{directory_results_df}/LDA_Comparison_MinTemp.csv"
+    
+mintemp_df = pd.DataFrame(mean_mintemp_lists, columns = ['min_temp', 'mean_improvement', 'mean_accuracy']) 
+mintemp_df.to_csv(mintemp_results_path)
+
+
+
 
 
