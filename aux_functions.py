@@ -1046,3 +1046,75 @@ def extract_model_params(path):
     return type_training, user, emg_type, batch_size, mintemp, iterations
     
 
+def plotRegressionResults(model_path):
+    
+    type_training, user, emg_type, batch_size, min_temp, iterations = extract_model_params(model_path)
+
+    if emg_type == "raw":
+        rawBool = True
+
+    else: 
+        rawBool = False
+
+
+    restim_tr1 = getProcessedData(user = user, dataset = 1, mode='restimulus', rawBool = rawBool)
+    restim_tr2 = getProcessedData(user = user, dataset = 2, mode='restimulus', rawBool = rawBool)
+    restim_test = getProcessedData(user = user, dataset = 3, mode='restimulus', rawBool = rawBool)
+
+
+    glove_tr1 = getProcessedData(user = user, dataset = 1, mode='glove', rawBool = rawBool)
+    glove_tr2 = getProcessedData(user = user, dataset = 2, mode='glove', rawBool = rawBool)
+    glove_test = getProcessedData(user = user, dataset = 3, mode='glove', rawBool = rawBool)
+
+
+    gesture_list = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    glove_channel_list = np.arange(1, 19, 1)
+
+    # 1. I need the real glove data. i.e I need the restim data to cut to the glove data 
+
+    # focus on GB for now
+
+    reg_type_list = ["MLP", "GB"] # need to add PSLR
+    
+    reg_colour_list = ["red", "magenta"]
+
+    for gesture in gesture_list:
+
+
+
+        for index, glove_channel in enumerate(glove_channel_list):
+
+            fig, ax = plt.subplots(figsize = (10, 10))
+
+            start, end = cutStimTransition(restim_test, required_stimulus=gesture)
+            glove_truth = glove_test[start:end, index]
+
+            xvals = np.arange(0, len(glove_truth), 1)
+            ax.plot(xvals, glove_truth, label = 'Ground Truth', color = 'black')
+
+            for index_reg, reg_type in enumerate(reg_type_list):
+                
+                gesture_prediction_path = f"./results_generation/regression_results/regression_predictions/{reg_type}/User{user}/Gesture{gesture}"
+
+                for dirpath, dirname, filenames in os.walk(gesture_prediction_path):
+                        for filename in filenames:
+                            file_path = os.path.join(dirpath, filename)
+                            reg_pred_df = pd.read_csv(file_path)
+
+                            reg_pred_channel = reg_pred_df.iloc[index]
+                            ax.plot(xvals, reg_pred_channel, label = f"{reg_type}", color = reg_colour_list[index_reg])
+                        
+            ax.legend()
+            ax.set_xlabel("Windows")
+            ax.set_ylabel("Joint state")  # TODO: change units
+
+            plot_path = f"./results_generation/regression_results/regression_predictions/trajectory_plots/Gesture{gesture}/Channel{glove_channel}"
+            ensure_directory_exists(plot_path)
+
+            ax.set_title(f"Gesture {gesture} to {gesture + 1}, User: {user}, Channel: {glove_channel}")
+            plt.savefig(f"{plot_path}/User{user}_Gesture{gesture}_Channel{glove_channel}.png")
+            #plt.show()
+
+    return plot_path
+                
+

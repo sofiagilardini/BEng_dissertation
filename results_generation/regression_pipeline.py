@@ -1,9 +1,6 @@
 import sys
 
-# print the original sys.path
-print('Original sys.path:', sys.path)
 sys.path.append("/home/sofia/beng_thesis")
-print("updated", sys.path)
 
 
 import matplotlib.pyplot as plt
@@ -61,10 +58,10 @@ for dirpath, dirnames, filenames in os.walk(directory_loadmodels):
         file_path = os.path.join(dirpath, filename)
         
         if file_path.__contains__(".pt"):
-
-            model_path = file_path
-            list_models.append(model_path)
-            print(model_path)
+            if file_path.__contains__("mintemp1_"): # optimal minimum temperature for regression
+                model_path = file_path
+                list_models.append(model_path)
+                print(model_path)
 
 
 
@@ -125,15 +122,27 @@ def runRegression(model_path, reg_type: str, gesture, results_dir: str):
     embedding_test = embedding_test[start:end, :]
 
 
+    # if reg_type == "MLP":
+    #     reg = MLPRegressor((256, 256)) # to review - layers
+
+    # if reg_type == "GB":
+    #     reg = GradientBoostingRegressor(n_estimators=100) # to review - estimators
+
+    # if reg_type == "PSLR":
+    #     raise ValueError("Not implemented yet, use MLP or GB")
+    
+
+
     if reg_type == "MLP":
-        reg = MLPRegressor((256, 256)) # to review - layers
+        reg = MLPRegressor((10, 10)) # to review - layers
 
     if reg_type == "GB":
-        reg = GradientBoostingRegressor(n_estimators=100) # to review - estimators
+        reg = GradientBoostingRegressor(n_estimators=5) # to review - estimators
 
     if reg_type == "PSLR":
         raise ValueError("Not implemented yet, use MLP or GB")
     
+
 
     # this is just the accuracy scores for all the gestures for one glove channel -> although now I think it should be the other way around. 
     # i.e one row of data in the df has all the glove channel accuracies for one gesture (not one row has all the gesture accuracies for one glove state)
@@ -159,9 +168,9 @@ def runRegression(model_path, reg_type: str, gesture, results_dir: str):
 
     
     predictions_gesture = pd.DataFrame(predictions_gesture)
-    predictions_gesture_path = f"{results_dir}/regression_predictions"
+    predictions_gesture_path = f"{results_dir}/regression_predictions/{reg_type}/User{user}/Gesture{gesture}"
     auxf.ensure_directory_exists(predictions_gesture_path)
-    predictions_gesture.to_csv(f"{predictions_gesture_path}/{model_ID}_{reg_type}_{gesture}.csv", index = False)
+    predictions_gesture.to_csv(f"{predictions_gesture_path}/{model_ID}_{reg_type}.csv", index = False)
 
 
 
@@ -195,61 +204,9 @@ def runRegression(model_path, reg_type: str, gesture, results_dir: str):
 
 
 
-
-
-
-
-
-
-
-
-
-    # accuracy_scores = []
-
-    # reg.fit(embedding_tr, glove_tr_concat[:, 9]) # this is only 9th glove channel - needs to change !! !
-
-    # for i, gesture in enumerate(gestures):
-
-    #     start, end = auxf.cutStimTransition(restim_test, gesture)
-        
-    #     reg_pred = reg.predict(embedding_test[start:end, :]) #9th glove channel for now - this needs to change for all of them  !!! !
-
-    #     accuracy_score = reg.score(embedding_test[start:end, :], glove_test[:, 9])
-
-    #     accuracy_scores.append(accuracy_score)
-
-
-    # df_row = {'model_name' : model_ID,
-    #           "emg_type" : emg_type,
-    # 'dim' : dim, 
-    # 'batch_size' : batch_size, 
-    # 'user' : user, 
-    # 'iterations' : iterations,
-    # "regressor" : reg_type, 
-    # "r_sq_1_2" : accuracy_scores[0],
-    # "r_sq_2_3" : accuracy_scores[1],
-    # "r_sq_3_4" : accuracy_scores[2],
-    # "r_sq_4_5" : accuracy_scores[3],
-    # "r_sq_5_6" : accuracy_scores[4],
-    # "r_sq_6_7" : accuracy_scores[5],
-    # "r_sq_7_8" : accuracy_scores[6],
-    # "r_sq_8_9" : accuracy_scores[7],
-    # }
-    
-
     return df_row
 
 
-
-# results_df_regression = pd.DataFrame(columns = ['model_name',
-#               'emg_type',
-#               'dim', 
-#               'batch_size', 
-#               'user',
-#               'iterations',
-#               "regressor", 
-#               "r_squared", # eventually add gesture
-#               ])
 
 
 df_headers = [
@@ -266,37 +223,40 @@ directory_results_df = f'./results_generation/regression_results'
 auxf.ensure_directory_exists(directory_results_df)
 
 
-results_path = f"{directory_results_df}/Regressors.csv"
+results_path = f"{directory_results_df}/Regressors_results.csv"
 results_df_regression.to_csv(results_path)
 
 gestures = [1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 
-for model in list_models:
+for model_path in list_models:
     for gesture in gestures:
         
         reg_type = "MLP"
-        directory_results_df = f'./results_generation/{reg_type}/regression_results'
-        auxf.ensure_directory_exists(directory_results_df)
+        # directory_results_MLP = f'./results_generation/regression_results/{reg_type}'
+        # auxf.ensure_directory_exists(directory_results_MLP)
 
-        df_row = runRegression(model_path=model, reg_type=reg_type, gesture = gesture, results_dir = directory_results_df)
+        df_row = runRegression(model_path=model_path, reg_type=reg_type, gesture = gesture, results_dir = directory_results_df)
         results_list.append(df_row)
         df_row = pd.DataFrame(data=[df_row]) 
 
         results_stored = pd.read_csv(results_path)
         results_df = pd.concat([results_stored, df_row])
         results_df.to_csv(results_path, index = False)
+        auxf.plotRegressionResults(model_path=model_path)
 
         reg_type = "GB"
-        directory_results_df = f'./results_generation/{reg_type}/regression_results'
-        auxf.ensure_directory_exists(directory_results_df)
+        # directory_results_GB = f'./results_generation/regression_results/{reg_type}'
+        # auxf.ensure_directory_exists(directory_results_GB)
 
-        df_row = runRegression(model_path=model, reg_type= reg_type, gesture = gesture, results_dir = directory_results_df)
+        df_row = runRegression(model_path=model_path, reg_type= reg_type, gesture = gesture, results_dir = directory_results_df)
         results_list.append(df_row)
         df_row = pd.DataFrame(data=[df_row]) 
 
         results_stored = pd.read_csv(results_path)
         results_df = pd.concat([results_stored, df_row])
         results_df.to_csv(results_path, index = False)
+        auxf.plotRegressionResults(model_path=model_path)
+
 
 

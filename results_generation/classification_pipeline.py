@@ -56,10 +56,11 @@ for dirpath, dirnames, filenames in os.walk(directory_loadmodels):
         file_path = os.path.join(dirpath, filename)
         
         if file_path.__contains__(".pt"):
+            if file_path.__contains__("mintemp0.3"): # this is the minimum temperature for optimal classification
 
-            model_path = file_path
-            list_models.append(model_path)
-            print(model_path)
+                model_path = file_path
+                list_models.append(model_path)
+                print(model_path)
 
 
 def plot_lda_cebra(lda_embedding, cebra_embedding, restim_test, user, modelID):
@@ -102,7 +103,7 @@ def plot_lda_cebra(lda_embedding, cebra_embedding, restim_test, user, modelID):
         cebra_embedding_plt = cebra_embedding[start:end, :]
 
 
-        fig, axes = plt.subplots(1, 2, figsize = (15 ,15), subplot_kw={'projection' : '3d'})
+        fig, axes = plt.subplots(1, 2, figsize = (10 , 10), subplot_kw={'projection' : '3d'})
 
         miniplotsize = 14
         labelsize = 10
@@ -111,8 +112,11 @@ def plot_lda_cebra(lda_embedding, cebra_embedding, restim_test, user, modelID):
         axes[1].scatter(cebra_embedding_plt[:, 0], cebra_embedding_plt[:, 1], cebra_embedding_plt[:, 2], label = "CEBRA Embedding", c = point_colors)
         # axes[0].set_title(f"LDA Embedding, Gesture {gesture} and 'Rest', User {user}" , color = 'white', fontsize = miniplotsize, y = 0.97)
         # axes[1].set_title(f"CEBRA Embedding, Gesture {gesture} and 'Rest', User {user}" , color = 'white', fontsize = miniplotsize, y = 0.97)
-        axes[0].set_title(f"LDA Embedding, Gesture {gesture} and 'Rest', User {user}" , color = 'white', fontsize = miniplotsize)
-        axes[1].set_title(f"CEBRA Embedding, Gesture {gesture} and 'Rest', User {user}" , color = 'white', fontsize = miniplotsize)
+        axes[0].set_title(f"LDA Embedding" , color = 'black', fontsize = miniplotsize)
+        axes[1].set_title(f"CEBRA Embedding" , color = 'black', fontsize = miniplotsize)
+        axes[0].set_box_aspect(aspect = None, zoom = 0.85)
+        axes[1].set_box_aspect(aspect = None, zoom = 0.85)
+
 
 
         axes = axes.flatten()
@@ -141,12 +145,12 @@ def plot_lda_cebra(lda_embedding, cebra_embedding, restim_test, user, modelID):
 
 
         legend_handles = [Patch(color=color_map[label], label=label) for label in unique_labels]
-        fig.legend(handles=legend_handles, loc='upper right', bbox_to_anchor=(1, 0.75), title = 'Gesture', fontsize = 10) 
+        fig.legend(handles=legend_handles, loc='upper right', bbox_to_anchor=(1, 0.6), title = 'Gesture', fontsize = 10) 
 
         directory_results_plots = f'./results_generation/restimulus_classification/results_plots'
         auxf.ensure_directory_exists(directory_results_plots)
 
-        plt.suptitle(f"{modelID}_user{user}_{gesture}")
+        plt.suptitle(f"{modelID}, Gesture {gesture} and 'Rest', User {user}")
 
         plt.savefig(f"{directory_results_plots}/LDA_CEBRA_{modelID}_{gesture}.png")
 
@@ -212,11 +216,11 @@ def runKNNComparison(model_path):
     # this also needs to be plotted
     emg_lda_test = lda.transform(emg_test)
 
-    # #plot_lda_cebra(lda_embedding=emg_lda_test, 
-    #                cebra_embedding=test_embedding, 
-    #                restim_test=restim_test, 
-    #                user=user, 
-    #                modelID=model_ID)
+    plot_lda_cebra(lda_embedding=emg_lda_test, 
+                   cebra_embedding=test_embedding, 
+                   restim_test=restim_test, 
+                   user=user, 
+                   modelID=model_ID)
 
 
     # LDA KNN
@@ -251,15 +255,6 @@ def runKNNComparison(model_path):
     "% _ difference" : difference*100,
     "cebra_outperform" : cebra_outpeform}
 
-    #df_row = [model_name, time_offset, dim, batch_size, user_tr, user_test, iterations, lda_knn_accuracy, cebra_knn_accuracy, difference*100, cebra_outpeform]
-
-    # df_row = pd.DataFrame(data=[df_row])  # or any other index you prefer
-
-    # results_stored = pd.read_csv("./classification_gridsearch/LDA_test/results/results_df_2_3dims.csv")
-
-    # results_df = pd.concat([results_stored, df_row])
-    # results_df.to_csv("./classification_gridsearch/LDA_test/results/results_df_2_3dims.csv")
-
 
     print("LDA ACC: ", lda_knn_accuracy)
     print("CEBRA ACC", cebra_knn_accuracy)
@@ -267,6 +262,45 @@ def runKNNComparison(model_path):
     print(df_row)
 
     return df_row
+
+
+
+def runComparison():
+    for model in list_models:
+        df_row = runKNNComparison(model)
+        results_list.append(df_row)
+        df_row = pd.DataFrame(data=[df_row]) 
+
+        results_stored = pd.read_csv(results_path)
+        results_df = pd.concat([results_stored, df_row])
+        results_df.to_csv(results_path, index = False)
+
+
+
+
+def findOptimalMinTemp():
+
+    mintemp_list = [0.1, 0.2, 0.3, 0.5, 0.7, 1, 1.2, 1.5]
+    mean_mintemp_lists = []
+
+    for min_temp in mintemp_list: 
+
+        mintemp_list = []
+        mintemp_list.append(min_temp)
+        mean_improvement = round(results_df["% _ difference"][results_df['min_temp'] == min_temp].mean(), 3)
+        mean_accuracy = round(results_df["cebra_knn_accuracy"][results_df['min_temp'] == min_temp].mean(), 3)
+
+        print(mean_accuracy)
+        mintemp_list.append(mean_improvement)
+        mintemp_list.append(mean_accuracy)
+
+        mean_mintemp_lists.append(mintemp_list)
+
+
+    mintemp_results_path = f"{directory_results_df}/LDA_Comparison_MinTemp.csv"
+        
+    mintemp_df = pd.DataFrame(mean_mintemp_lists, columns = ['min_temp', 'mean_improvement', 'mean_accuracy']) 
+    mintemp_df.to_csv(mintemp_results_path)
 
 
 results_list = []
@@ -292,49 +326,5 @@ auxf.ensure_directory_exists(directory_results_df)
 
 results_path = f"{directory_results_df}/LDA_Comparison.csv"
 results_df_inter.to_csv(results_path)
-
-
-def runComparison():
-    for model in list_models:
-        df_row = runKNNComparison(model)
-        results_list.append(df_row)
-        df_row = pd.DataFrame(data=[df_row]) 
-
-        results_stored = pd.read_csv(results_path)
-        results_df = pd.concat([results_stored, df_row])
-        results_df.to_csv(results_path, index = False)
-
-
-
 results_df = pd.read_csv("results_generation/restimulus_classification/results_dataframes/LDA_Comparison_saved.csv")
-
-
-
-
-
-mintemp_list = [0.1, 0.3, 0.5, 0.7, 1, 1.2, 1.5]
-mean_mintemp_lists = []
-
-for min_temp in mintemp_list: 
-
-    mintemp_list = []
-    mintemp_list.append(min_temp)
-    mean_improvement = round(results_df["% _ difference"][results_df['min_temp'] == min_temp].mean(), 3)
-    mean_accuracy = round(results_df["cebra_knn_accuracy"][results_df['min_temp'] == min_temp].mean(), 3)
-
-    print(mean_accuracy)
-    mintemp_list.append(mean_improvement)
-    mintemp_list.append(mean_accuracy)
-
-    mean_mintemp_lists.append(mintemp_list)
-
-
-mintemp_results_path = f"{directory_results_df}/LDA_Comparison_MinTemp.csv"
-    
-mintemp_df = pd.DataFrame(mean_mintemp_lists, columns = ['min_temp', 'mean_improvement', 'mean_accuracy']) 
-mintemp_df.to_csv(mintemp_results_path)
-
-
-
-
 
