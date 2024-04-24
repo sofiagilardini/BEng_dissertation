@@ -1,238 +1,255 @@
+import sys
+sys.path.append("./BEng_dissertation")
 
 
+import matplotlib.pyplot as plt
+import numpy as np
+import aux_functions as auxf
 import matplotlib.pyplot as plt
 import scipy.io
 import numpy as np
 import cebra
 from cebra import CEBRA
 import cebra.models
-import datapipe_redu as dtp
-from sklearn.model_selection import train_test_split
 import aux_functions as auxf
 from copy import deepcopy
 from sklearn.metrics import accuracy_score
 from torch import nn
 import cebra.models
 import cebra.data
-from cebra.models.model import _OffsetModel, ConvolutionalModelMixin
-from scipy.signal import butter, lfilter
 import os
 import pandas as pd
 from torch import nn
-import cebra.models
-import cebra.data
-from cebra.models.model import _OffsetModel, ConvolutionalModelMixin
 from copy import deepcopy
 import seaborn as sns
-
-from sklearn.decomposition import PCA
-
-
-# there is enough variety in the predefined models 
-
-
-models_list = ["offset10-model", 
-                'offset5-model', 
-                "offset40-model-4x-subsample",
-                "offset20-model-4x-subsample", 
-                "offset4-model-2x-subsample", 
-                "supervised10-model",
-                "offset36-model",
-                "offset36-model-dropout",
-                "offset36-model-more-dropout"]
-
-
-time_offsets_list = [10, 20, 50]
-dm_list = [6, 9, 12]
-batch_size_list = [2*6, 2*7, 2**8]
-num_hidden_units_list = [2**4, 2**5, 2**6]
-
-
-users_list = [1, 2, 3, 4, 5, 6]
-
-users_list = [1]
+import os
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
+from sklearn.neighbors import KNeighborsClassifier as KNN
+from sklearn.pipeline import Pipeline
+from sklearn.model_selection import GridSearchCV
+from joblib import dump
+from joblib import load 
 
 
 
-dataprocessed = [True, False]
 
-results_df = pd.DataFrame(columns = ['model_name',
-              'time_offset',
-              'dim', 
-              'batch_size', 
-              'num_hidden_units',
-              'user', 
-              "pca_knn_accuracy", 
-              "cebra_knn_accuracy",
-              "% _ difference",
-              "cebra_outperform"])
+params = {
+    "font.family": "serif",
+}
 
 
+import matplotlib as mpl
+mpl.rcParams.update(params)
 
-def classificationGridSearch(user: int, 
-                             results_df,
-                             model_name:str, 
-                             batch_size: int, 
-                             iterations: int,
-                             time_offset: int, 
-                             dim: int,
-                             num_hidden_unit: int):
+iterations = 20000
 
-    dataprocessed  = True
+user_list = np.arange(1, 13)
+gesture_list = np.arange(1, 10)
 
-    if dataprocessed:
-        emg_tr1 = auxf.getProcessedData(user = user, dataset = 1, type_data = 'training', mode = 'emg')
-        emg_tr2 = auxf.getProcessedData(user = user, dataset = 2, type_data = 'validation', mode = 'emg')
-        emg_test = auxf.getProcessedData(user = user, dataset = 3, type_data = 'test', mode = 'emg')
-
-        glove_tr1 = auxf.getProcessedData(user = user, dataset = 1, type_data = 'training', mode = 'glove')
-        glove_tr2 = auxf.getProcessedData(user = user, dataset = 2, type_data = 'validation', mode = 'glove')
-        glove_test = auxf.getProcessedData(user = user, dataset = 3, type_data = 'test', mode = 'glove')
-
-        restim_tr1 = auxf.getProcessedData(user = user, dataset = 1, type_data = 'training', mode = 'restimulus').astype(int)
-        restim_tr2 = auxf.getProcessedData(user = user, dataset = 2, type_data = 'validation', mode = 'restimulus').astype(int)
-        restim_test = auxf.getProcessedData(user = user, dataset = 3, type_data = 'test', mode = 'restimulus').astype(int)
-
-    ## ------ GET DATA -------- ####
+best_model_list = []
 
 
-    ## ------ DEFINE MODEL -------- ####
+user_results = []
 
-    cebra_model_def = CEBRA(
-        model_architecture = model_name,
-        batch_size= batch_size,
-        temperature_mode='auto',
-        #min_temperature=1,
-        learning_rate = 0.0001,
-        max_iterations = iterations,
-        time_offsets = time_offset,
-        output_dimension = dim, 
-        device = "cuda_if_available",
-        verbose = True,
-        conditional='time_delta',
-        distance = 'cosine',
-        num_hidden_units= num_hidden_unit,
-    )
+def runGridSearch():
+
+    for user in user_list: 
+
+        user_row = []
+
+        emg1 = auxf.getProcessedEMG(user = user, dataset= 1, type_data = 'all')
+        emg2 = auxf.getProcessedEMG(user = user, dataset= 2, type_data = 'all')
 
 
-    ## ------ DEFINE MODEL -------- ####
 
-    emg_tr_concat = np.concatenate([emg_tr1, emg_tr2])
 
+        stim1 = auxf.getProcessedData(user = user, dataset=1, mode = 'restimulus', rawBool=False)
+        stim2 = auxf.getProcessedData(user = user, dataset=2, mode = 'restimulus', rawBool=False)
+
+
+
+        glove1 = (auxf.getMappedGlove(user = user, dataset=1)).T
+        glove2 = (auxf.getMappedGlove(user = user, dataset=2)).T
+
+
+
+
+        # create trainval
+        emg_trainval = np.concatenate((emg1, emg2))
+        stim_trainval = np.concatenate((stim1, stim2))
+        glove_trainval = np.concatenate((glove1, glove2))
+
+
+
+
+        pipeline_cebra = Pipeline([
+            ('cebra', CEBRA(
+                    # model_architecture = 'offset10-model',
+                    batch_size= 256,
+                    temperature_mode='auto',
+                    learning_rate = 0.0001,
+                    max_iterations = iterations,
+                    time_offsets = 25,
+                    output_dimension = 3, 
+                    device = "cuda_if_available",
+                    min_temperature = 0.3,
+                    verbose = True,
+                    conditional='time_delta', 
+                    distance = 'cosine' 
+                )   ), 
+            ('knn', KNN())
+        ])
+
+
+        pipeline_lda = Pipeline([
+            ('lda', LDA(n_components=3)), 
+            ('knn', KNN())
+        ])
+
+
+        param_grid_cebra = {
+
+            'knn__n_neighbors': [200, 350, 500],
+            'cebra__model_architecture' : ['offset10-model', 'offset36-model'],
+        }
+
+        param_grid_lda = {
+
+            'knn__n_neighbors': [200, 350, 500]
+
+        }
+
+
+
+        emg_test = auxf.getProcessedEMG(user = user, dataset= 3, type_data = 'all')
+        stim_test = auxf.getProcessedData(user = user, dataset=3, mode = 'restimulus', rawBool=False)
+        glove_test = (auxf.getMappedGlove(user = user, dataset=3)).T
+
+
+        X_train = emg_trainval
+        y_train = stim_trainval
+
+
+        grid_search_cebra = GridSearchCV(pipeline_cebra, param_grid_cebra, cv=3, scoring='accuracy')
+        grid_search_cebra.fit(X_train, y_train)
+
+        grid_search_lda = GridSearchCV(pipeline_lda, param_grid_lda, cv=3, scoring='accuracy')
+        grid_search_lda.fit(X_train, y_train)
+
+
+        best_params_cebra = grid_search_cebra.best_params_
+        best_score_cebra = grid_search_cebra.best_score_
+
+        best_params_lda = grid_search_lda.best_params_
+        best_score_lda = grid_search_lda.best_score_
+
+        best_model_cebra = grid_search_cebra.best_estimator_
+        best_model_lda = grid_search_lda.best_estimator_
+
+        # Evaluate on test set
+        test_score_cebra = accuracy_score(stim_test, best_model_cebra.predict(emg_test))
+        test_score_lda = accuracy_score(stim_test, best_model_lda.predict(emg_test))
+        
+        # Gather all results in a list of dictionaries for easy DataFrame construction
+        user_row = {
+            'user': user,
+            'CEBRA_acc': test_score_cebra,
+            'LDA_acc': test_score_lda,
+            'best_params_cebra': grid_search_cebra.best_params_,
+            'best_params_lda': grid_search_lda.best_params_,
+        }
+        user_results.append(user_row)
+        
+        # Store the best models
+        best_model_list.append((best_model_cebra, best_model_lda))
+
+
+    classif_results_df = pd.DataFrame(user_results, columns = ['user', 'CEBRA_acc', 'LDA_acc', 'best_params_cebra', 'best_params_lda'])
+
+    classif_results_path = f"./classification/results"
+    auxf.ensure_directory_exists(classif_results_path)
+
+    classif_results_df.to_csv(f"{classif_results_path}/classif_results.csv")
+
+
+
+# --- run classification ---- -#
+
+runGridSearch()
+
+
+# ----- process the classification results ------ # 
+
+classif_results_path = f"./classification/results"
    
-   ### ------ CEBRA --------
-
-    cebra_model = deepcopy(cebra_model_def)
-
-    cebra_model.partial_fit(emg_tr1, glove_tr1, restim_tr1)
-    cebra_model.partial_fit(emg_tr2, glove_tr2, restim_tr2)
-
-    cebra_model.save(f"./classification_gridsearch/models/{user}_{model_name}_{batch_size}_{time_offset}_{dim}_{num_hidden_unit}_{iterations}.pt")
-
-    emg_cebra_tr_concat = cebra_model.transform(emg_tr_concat)
-
-    emg_cebra_test = cebra_model.transform(emg_test)
-
-    restim_concat = np.concatenate([restim_tr1, restim_tr2])
-
-    knn_cebra = cebra.KNNDecoder(n_neighbors=k, metric = 'cosine')
-
-    knn_cebra.fit(emg_cebra_tr_concat, restim_concat)
-
-    knn_cebra_pred = knn_cebra.predict(emg_cebra_test)
-
-    cebra_knn_accuracy = accuracy_score(restim_test, knn_cebra_pred)
+results = pd.read_csv(f"{classif_results_path}/classif_results.csv")
 
 
-    ### ------ PCA ---------- ###
+# ----- bar plot --------- #
 
-    pca = PCA(n_components= dim)
+fig, ax = plt.subplots(figsize=(18, 12))
 
-    emg_pca_concat = pca.fit_transform(emg_tr_concat)
 
-    emg_pca_test = pca.transform(emg_test)
+sns.barplot(x=results['user'], y=results['CEBRA_acc'], color='orangered', label='CEBRA', alpha=0.8, ax=ax)
+sns.barplot(x=results['user'], y=results['LDA_acc'], color='royalblue', label='LDA', alpha=0.5, ax=ax) 
 
-    knn_pca = cebra.KNNDecoder(n_neighbors=k, metric = 'cosine')
-    knn_pca.fit(emg_pca_concat, restim_concat)
+ax.legend(fontsize = 17)
 
-    knn_pca_pred = knn_pca.predict(emg_pca_test)
+ax.set_xticklabels([f'User {i}' for i in range(1, 13)], fontsize = 17)
+ax.set_title("Accuracy of KNN with CEBRA and LDA embeddings", fontsize = 20)
+ax.set_ylabel("Accuracy", fontsize = 19)
+ax.set_xlabel('')
+ax.set_ylim((0, 1))
+# plt.savefig(f"{classif_results_path}/classif_results_plot.png")
 
-    pca_knn_accuracy = accuracy_score(restim_test, knn_pca_pred)
 
-    print("PCA ACC: ", pca_knn_accuracy)
-    print("CEBRA ACC", cebra_knn_accuracy)
+# ----- text file : stats ------- # 
 
-    difference = cebra_knn_accuracy - pca_knn_accuracy
+with open(f"{classif_results_path}/classif_result_stats.txt", 'w') as file:
+    file.write(f"Mean accuracy CEBRA embeddings: {results['CEBRA_acc'].mean()} \n")
+    file.write(f"Std accuracy CEBRA embeddings: {results['CEBRA_acc'].std()} \n")
+    file.write(f"Mean accuracy LDA embeddings: {results['LDA_acc'].mean()} \n")
+    file.write(f"Std accuracy LDA embeddings: {results['LDA_acc'].std()} \n")
 
-    if difference > 0:
-        cebra_outpeform = True
+# ----- improved plot ------- #
+
+
+melted_results = results.melt(id_vars=['user'], 
+                              value_vars=['CEBRA_acc', 'LDA_acc'],
+                              var_name='method', 
+                              value_name='score')
+
+melted_results['Dim. Reduction'] = melted_results['method'].replace({'CEBRA_acc': 'CEBRA', 'LDA_acc': 'LDA'})
+
+
+g = sns.catplot(data=melted_results, kind="bar",
+                x="user", y="score", hue="Dim. Reduction",
+                palette="muted", alpha=.6, height = 15, aspect=20/15)
+
+# Set spines to show all sides of the plot
+for ax in g.axes.flat:
+    for _, spine in ax.spines.items():
+        spine.set_visible(True)
     
-    else:
-        cebra_outpeform = False
+    ax.tick_params(axis='x', labelsize=22)  # Adjust the value as needed
 
 
-    # --- APPEND TO DF ----- # 
+    # Increase font size for tick labels
+    ax.tick_params(labelsize=22)
 
+# Customizations
+g.set_axis_labels("User", "Accuracy", fontsize=22)
+g.set_titles("")
 
-    df_row = {'model_name' : model_name,
-              'time_offset' : time_offset,
-              'dim' : dim, 
-              'batch_size' : batch_size, 
-              'num_hidden_units' : num_hidden_unit,
-              'user' : user, 
-              "pca_knn_accuracy" : pca_knn_accuracy, 
-              "cebra_knn_accuracy" : cebra_knn_accuracy,
-              "% _ difference" : difference*100,
-              "cebra_outperform" : cebra_outpeform}
-    
-    df_row = pd.DataFrame(data=[df_row], index=[0])  # or any other index you prefer
+# Adjusting the legend
+new_labels = ["CEBRA", "LDA"]
+for t, l in zip(g._legend.texts, new_labels): 
+    t.set_text(l)
+    t.set_fontsize(22)  # Increase font size for legend labels
 
+# Set the ylim
+g.set(ylim=(0, 1))
+g._legend.set_bbox_to_anchor((0.99, 0.5))  
+plt.setp(g._legend.get_title(), fontsize=20)  # Increase font size for legend title
 
-    results_df = pd.concat([results_df, df_row])
-    results_df.to_csv("./classification_gridsearch/results/results_df.csv")
-
-    return results_df
-
-    
-    # results_df = results_df.append(df_row, ignore_index = True
-
-
-
-iterations = 1
-k = 201
-
-for model_name in models_list:
-    for user in users_list: 
-        for batch_size in batch_size_list:
-            for time_offset in time_offsets_list:
-                for num_hidden_unit in num_hidden_units_list:
-                    for dim in dm_list:
-                        results_df = classificationGridSearch(user = user, 
-                                                 results_df=results_df, 
-                                                 model_name=model_name, 
-                                                 batch_size=batch_size, 
-                                                 iterations = iterations, 
-                                                 time_offset=time_offset, 
-                                                 dim = dim, 
-                                                 num_hidden_unit=num_hidden_unit)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+plt.savefig(f"{classif_results_path}/classif_results_plot.png")

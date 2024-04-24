@@ -1,0 +1,13 @@
+,user,CEBRA_acc, LDA_acc,best_params_cebra,best_params_lda
+0,1,0.7709383039350405,0.7446310674820147,"{'cebra__min_temperature': 0.3, 'cebra__model_architecture': 'offset36-model', 'cebra__time_offsets': 25, 'knn__n_neighbors': 200}",{'knn__n_neighbors': 500}
+1,2,0.7876630802841512,0.7561484941414118,"{'cebra__min_temperature': 0.3, 'cebra__model_architecture': 'offset36-model', 'cebra__time_offsets': 25, 'knn__n_neighbors': 200}",{'knn__n_neighbors': 350}
+2,3,0.516176704635882,0.5289771047904872,"{'cebra__min_temperature': 0.3, 'cebra__model_architecture': 'offset10-model', 'cebra__time_offsets': 25, 'knn__n_neighbors': 200}",{'knn__n_neighbors': 350}
+3,4,0.8286354211334314,0.7599391235133867,"{'cebra__min_temperature': 0.3, 'cebra__model_architecture': 'offset36-model', 'cebra__time_offsets': 25, 'knn__n_neighbors': 350}",{'knn__n_neighbors': 500}
+4,5,0.7918601902639248,0.7492903834134227,"{'cebra__min_temperature': 0.3, 'cebra__model_architecture': 'offset36-model', 'cebra__time_offsets': 25, 'knn__n_neighbors': 500}",{'knn__n_neighbors': 200}
+5,6,0.769963814532623,0.7516238509428449,"{'cebra__min_temperature': 0.3, 'cebra__model_architecture': 'offset36-model', 'cebra__time_offsets': 25, 'knn__n_neighbors': 350}",{'knn__n_neighbors': 350}
+6,7,0.7768157440232706,0.7121625306790292,"{'cebra__min_temperature': 0.3, 'cebra__model_architecture': 'offset36-model', 'cebra__time_offsets': 25, 'knn__n_neighbors': 200}",{'knn__n_neighbors': 350}
+7,8,0.5719685621559021,0.5671219616388908,"{'cebra__min_temperature': 0.3, 'cebra__model_architecture': 'offset36-model', 'cebra__time_offsets': 25, 'knn__n_neighbors': 500}",{'knn__n_neighbors': 350}
+8,9,0.6043655332378884,0.6118154012664196,"{'cebra__min_temperature': 0.3, 'cebra__model_architecture': 'offset10-model', 'cebra__time_offsets': 25, 'knn__n_neighbors': 200}",{'knn__n_neighbors': 500}
+9,10,0.6691527957765001,0.639939300660052,"{'cebra__min_temperature': 0.3, 'cebra__model_architecture': 'offset36-model', 'cebra__time_offsets': 25, 'knn__n_neighbors': 200}",{'knn__n_neighbors': 200}
+10,11,0.8194675862612512,0.751025840630752,"{'cebra__min_temperature': 0.3, 'cebra__model_architecture': 'offset36-model', 'cebra__time_offsets': 25, 'knn__n_neighbors': 350}",{'knn__n_neighbors': 200}
+11,12,0.8283947540936754,0.7846682184028865,"{'cebra__min_temperature': 0.3, 'cebra__model_architecture': 'offset10-model', 'cebra__time_offsets': 25, 'knn__n_neighbors': 200}",{'knn__n_neighbors': 200}

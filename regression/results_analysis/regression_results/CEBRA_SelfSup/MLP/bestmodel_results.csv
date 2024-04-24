@@ -1,0 +1,13 @@
+,user,best_score_r2,best_params
+0,1,-0.2258081377388705,"{'mlp__hidden_layer_sizes': (150, 150)}"
+1,2,-0.14621092121316537,"{'mlp__hidden_layer_sizes': (256, 256)}"
+2,3,-0.08617718991746233,"{'mlp__hidden_layer_sizes': (150, 150)}"
+3,4,0.0846001716195559,"{'mlp__hidden_layer_sizes': (256, 256)}"
+4,5,0.42963968866008356,"{'mlp__hidden_layer_sizes': (150, 150)}"
+5,6,0.238623369058426,"{'mlp__hidden_layer_sizes': (150, 150)}"
+6,7,0.15642341246558744,"{'mlp__hidden_layer_sizes': (256, 256)}"
+7,8,-0.05529107020947044,"{'mlp__hidden_layer_sizes': (256, 256)}"
+8,9,-0.06915079876232035,"{'mlp__hidden_layer_sizes': (256, 256)}"
+9,10,0.34961888702178845,"{'mlp__hidden_layer_sizes': (150, 150)}"
+10,11,0.5217351459370342,"{'mlp__hidden_layer_sizes': (150, 150)}"
+11,12,-0.3079805863935153,"{'mlp__hidden_layer_sizes': (256, 256)}"

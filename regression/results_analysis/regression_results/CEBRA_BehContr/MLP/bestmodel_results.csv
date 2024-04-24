@@ -1,0 +1,13 @@
+,user,best_score_r2,best_params
+0,12,0.7173705546466455,"{'mlp__hidden_layer_sizes': (150, 150)}"
+1,11,0.7300256907601138,"{'mlp__hidden_layer_sizes': (256, 256)}"
+2,10,0.762269227393248,"{'mlp__hidden_layer_sizes': (256, 256)}"
+3,9,0.828013835098324,"{'mlp__hidden_layer_sizes': (256, 256)}"
+4,8,0.8445394577309805,"{'mlp__hidden_layer_sizes': (150, 150)}"
+5,7,0.5272874213072031,"{'mlp__hidden_layer_sizes': (150, 150)}"
+6,6,0.7295281289540805,"{'mlp__hidden_layer_sizes': (150, 150)}"
+7,5,0.6695635457244592,"{'mlp__hidden_layer_sizes': (150, 150)}"
+8,4,0.6892514601975348,"{'mlp__hidden_layer_sizes': (150, 150)}"
+9,3,0.5862659837171659,"{'mlp__hidden_layer_sizes': (150, 150)}"
+10,2,0.7503439184079905,"{'mlp__hidden_layer_sizes': (256, 256)}"
+11,1,0.7308006549802503,"{'mlp__hidden_layer_sizes': (256, 256)}"

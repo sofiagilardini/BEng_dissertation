@@ -1,0 +1,4 @@
+Mean accuracy CEBRA embeddings: 0.7279502075277952 
+Std accuracy CEBRA embeddings: 0.10877905909825702 
+Mean accuracy LDA embeddings: 0.696445273130133 
+Std accuracy LDA embeddings: 0.08628162165412594 

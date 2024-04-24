@@ -1,7 +1,3 @@
-
-
-# -------   PREAMBLE ------------- #
-
 import matplotlib.pyplot as plt
 import scipy.io 
 import numpy as np 
@@ -29,7 +25,16 @@ plt.rcParams.update(
     }
 )
 
-# -------   PREAMBLE ------------- #
+
+"""
+
+This script contains all the necessary auxiliary functions used in this work - both in preliminary
+tests and tests that were included in the final results. 
+
+They are called in all scripts in this work by auxf.()
+
+
+"""
 
 
 
@@ -48,24 +53,6 @@ def getdata(user, dataset):
 
 
 
-# def getProcessedData(user: int, dataset: int, type_data: str, mode: str):
-
-#     winsize = 128
-#     winstride = 52
-#     cutoff = 450
-
-#     feat_ID = '0102'
-
-#     if mode == 'emg':
-
-#     # data = scipy.io.loadmat(f"./processed_data/{type_data}_data/{mode}_data_processed/{mode}_{user}_{dataset}_{cutoff}_{winsize}_{winstride}_{feat_ID}")
-#         data = np.load(f"./{type_data}_data/{mode}_data_processed/{mode}_{user}_{dataset}_{cutoff}_{winsize}_{winstride}_{feat_ID}.npy")
-
-#     else: 
-#         data = np.load(f"./{type_data}_data/{mode}_data_processed/{mode}_{user}_{dataset}_{winsize}_{winstride}.npy")
-
-
-#     return data
 
 def getProcessedData(user: int, dataset: int, mode: str, rawBool: bool):
 
@@ -80,7 +67,6 @@ def getProcessedData(user: int, dataset: int, mode: str, rawBool: bool):
 
     winsize = 128
     winstride = 52
-    cutoff = 450
 
     if rawBool: 
         data = np.load(f"./processed_data/{mode}_raw/dataset{dataset}/{mode}_{user}_{dataset}.npy")
@@ -88,17 +74,16 @@ def getProcessedData(user: int, dataset: int, mode: str, rawBool: bool):
     if not rawBool: 
         data = np.load(f"./processed_data/{mode}/dataset{dataset}/{mode}_{user}_{dataset}_{winsize}_{winstride}.npy")
 
+    return data
 
-    # feat_ID = '0102'
+def getMappedGlove(user: int, dataset: int):
 
-    # if mode == 'emg':
+    """
+    get the glove data that has been linearly transformed in ./glove_linear_mapping/linear_mapping_processing.py
 
-    # # data = scipy.io.loadmat(f"./processed_data/{type_data}_data/{mode}_data_processed/{mode}_{user}_{dataset}_{cutoff}_{winsize}_{winstride}_{feat_ID}")
-    #     data = np.load(f"./{type_data}_data/{mode}_data_processed/{mode}_{user}_{dataset}_{cutoff}_{winsize}_{winstride}_{feat_ID}.npy")
+    """
 
-    # else: 
-    #     data = np.load(f"./{type_data}_data/{mode}_data_processed/{mode}_{user}_{dataset}_{winsize}_{winstride}.npy")
-
+    data = np.load(f"./processed_data/glove_mapped/user{user}_dataset{dataset}.npy")
 
     return data
 
@@ -127,17 +112,6 @@ def getProcessedEMG(user: int, dataset: int, type_data: str):
     
     if not rawBool:
         data = np.load(f"./processed_data/emg_{type_data}/dataset{dataset}/emg_{user}_{dataset}_{cutoff}_{winsize}_{winstride}_{type_data}.npy")
-
-    # data = np.load(f"./{type_data}_data/{mode}_data_processed/{mode}_{user}_{dataset}_{cutoff}_{winsize}_{winstride}_{feat_ID}.npy")
-
-
-    # if mode == 'emg':
-
-    # # data = scipy.io.loadmat(f"./processed_data/{type_data}_data/{mode}_data_processed/{mode}_{user}_{dataset}_{cutoff}_{winsize}_{winstride}_{feat_ID}")
-    #     data = np.load(f"./{type_data}_data/{mode}_data_processed/{mode}_{user}_{dataset}_{cutoff}_{winsize}_{winstride}_{feat_ID}.npy")
-
-    # else: 
-    #     data = np.load(f"./{type_data}_data/{mode}_data_processed/{mode}_{user}_{dataset}_{winsize}_{winstride}.npy")
 
 
     return data
@@ -220,10 +194,6 @@ def slidingWindowGlove(x, win_size, win_stride):
         start_index = i * win_stride
         end_index = start_index + win_size
         window = x[start_index:end_index]
-        # window = np.mean(window) # here I am doing mean -> I want to be doing EWMA
-        # windows.append(window)
-
-        # not doing EWMA but taking mean of last 40% of the window
 
         # Calculate start index for the last 40% of the window
         mean_start_index = start_index + int(win_size * 0.6)
@@ -256,29 +226,7 @@ def slidingWindowRestimulus(x, win_size, win_stride):
         start_index = i * win_stride
         end_index = start_index + win_size
         window = x[start_index:end_index]
-        # #print("window", window)
 
-        # # window = np.mean(window) # here I am doing mean -> I want to be doing EWMA
-        # # windows.append(window)
-
-        # #not doing EWMA but taking mean of last 40% of the window
-
-        # # # Calculate start index for the last 40% of the window
-        # mean_start_index = start_index + int(win_size * 0.6)
-
-        # # print("mean start index", mean_start_index)
-
-        # # Take only the last 40% of the window
-        # end_segment_window = x[mean_start_index:end_index]
-
-        # # print(end_segment_window)        
-
-        # # Calculate the mean of the last 40%
-        # window_mean = np.mean(end_segment_window)
-        # #window_mean = np.mean(window)
-
-
-        # windows.append(window_mean)
 
         # Calculate the mode of the window
         mode_result = stats.mode(window)
@@ -314,17 +262,13 @@ def WL(windows_array, win_size, win_stride):
 def LV(windows_array, win_size):
     windows_LV_list = []
     for window in windows_array:
-        # print('var window', np.var(window))
 
         # log smoothing needed 
-
         epsilon = 1e-15
 
         window_LV = np.log10(np.var(window)+epsilon) # 
-        # print('window LV', window_LV)
         windows_LV_list.append(window_LV)
     windows_LV_array = np.array(windows_LV_list)
-    #print(windows_LV_array.shape)
 
     return windows_LV_array
 
@@ -340,6 +284,9 @@ def RMS(windows_array, win_size, win_stride):
     windows_RMS_array = np.array(windows_RMS_list)
 
     return windows_RMS_array
+
+
+# SSC not used in the end
 
 def SSC(windows_array, win_size, win_stride, thr= 0):
 
@@ -366,8 +313,6 @@ def slidingWindowParameters(frequency, size_secs, stride_secs):
     # NB: size and stride should be in Seconds (150ms = 150 * 10**(-3))
     window_size = frequency * size_secs
     window_stride = frequency * stride_secs
-
-    #print(window_size, window_stride)
 
     return window_size, window_stride
 
@@ -412,7 +357,7 @@ def emg_process(cutoff_val, size_val, stride_val, user, dataset, order, feat_ID:
 
     size = int(size)
     stride = int(stride)
-    # 2. get the data: input is user and which dataset (dataset should only be 1 or 2)
+    # 2. get the data: input is user and which dataset 
 
     emg_u1_d1, glove_u1_d1, stimulus_u1_d1 = getdata(user = user, dataset = dataset)
 
@@ -729,7 +674,6 @@ def cutStimulus(stimulus_data, required_stimulus):
         if not start_index_flag and stimulus_data_list[i] == [required_stimulus]:
             start_index = i
             start_index_flag = True
-            print("start index has changed at i", i)
         if stimulus_data_list[i] == [required_stimulus + 1]:
             end_index = i-1
             break
@@ -755,7 +699,6 @@ def cutStimulus2(stimulus_data, required_stimulus):
         if not start_index_flag and stimulus_data_list[i] == [required_stimulus]:
             start_index = i
             start_index_flag = True
-            print("start index has changed at i (2)", i)
     
         if start_index_flag and stimulus_data_list[i] == [0]:
             start_break_flag = True
@@ -773,7 +716,15 @@ def cutStimulus2(stimulus_data, required_stimulus):
 
 
 def cutStimTransition(stimulus_data, required_stimulus):
-    # Convert the stimulus data to a list for easier processing
+
+    """
+    This function is for the TEST dataset (dataset 3). It returns the indices for transition from the 
+    gesture i (required stimulus) to i + 1
+    
+    """
+
+
+
     stimulus_data_list = stimulus_data.tolist()
 
     start_index = None
@@ -786,25 +737,18 @@ def cutStimTransition(stimulus_data, required_stimulus):
 
     # Iterate over the stimulus data
     for i in range(len(stimulus_data_list) - 1):
-        #print("i", i)
-       # print("stim data list i", stimulus_data_list[i])
+
 
         if not in_rep and stimulus_data_list[i] == [required_stimulus]:
             rep_counter += 1
             in_rep = True
-            print("rep counter" , rep_counter)
         
         if in_rep and stimulus_data_list[i] == [0]:
             in_rep = False
 
         if rep_counter == 1:
             start_index = i+2
-        
-        # if rep_counter == 1:
-        #     beg = True
-
-        # if beg and stimulus_data_list[i] == [required_stimulus]:
-        #     start_index = i
+    
         
         if stimulus_data_list[i] == [required_stimulus + 1]:
 
@@ -971,16 +915,6 @@ def PCA_KNN_heatmap_df(emg_train, emg_test, rest_train, rest_test, k_list: list,
     return heatmap_df
 
 
-
-    # plt.figure(figsize=(10, 10))
-    # sns.heatmap(heatmap_array, vmin = 0, vmax = 1)
-    # plt.xticks(ticks=np.arange(len(k_list)), labels=k_list)
-    # # plt.yticks(ticks = np.arange(len(models_name_list)), labels = models_name_list)
-    # # plt.yticks(rotation = 90)
-    # plt.title("Heatmap for PCA and k parameters")
-    # plt.xlabel("K")
-    # plt.savefig(f"./classification_results/PCA_KNN_heatmap_user{user}.png")
-    # #plt.show()
 
 
 
