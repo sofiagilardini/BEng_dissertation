@@ -1,6 +1,6 @@
 # Continuous Decoding of Hand Joint States using Electromyography Data
 
-This repository contains the code I developed for my BEng dissertation at the University of Edinburgh. It investigates various dimensionality reduction methods for obtaining latent representations of EMG data, and training a neural network to perform regression using the embeddings for continuous decoding of the hand joint states.
+This repository contains the code I developed for my BEng dissertation at the University of Edinburgh. It investigates various dimensionality reduction methods for obtaining latent representations of EMG data, and training a neural network to perform regression using the embeddings for continuous decoding of the hand joint states. The process is shown in the figure below. 
 
 The dimensionality reduction methods investigated are PCA, UMAP, Autoencoder, and [CEBRA](https://cebra.ai/). The regression model used is a Multi-Layer Perceptron. The main purpose of my dissertation was to explore the suitability of CEBRA for continuous decoding of hand joint states using EMG data.
 
