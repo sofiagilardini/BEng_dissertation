@@ -1,4 +1,4 @@
-# Continous Decoding of Hand Joint States using Electromyography Data
+# Continuous Decoding of Hand Joint States using Electromyography Data
 
 This repository contains the code I developed for my BEng dissertation at the University of Edinburgh. It investigates various dimensionality reduction methods for obtaining latent representations of EMG data, and training a neural network to perform regression using the embeddings for continuous decoding of the hand joint states.
 
